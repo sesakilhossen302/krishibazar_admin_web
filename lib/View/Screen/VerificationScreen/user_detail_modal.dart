@@ -322,7 +322,10 @@ class _UserDetailModalState extends State<UserDetailModal> {
                               ),
                               icon: const Icon(Icons.hourglass_empty_rounded, size: 16),
                               label: const Text('অপেক্ষমাণ (Pending ⏳)'),
-                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEA580C)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFEA580C),
+                                foregroundColor: Colors.white,
+                              ),
                             ),
                             OutlinedButton.icon(
                               onPressed: () => repo.suspendUser(
@@ -384,9 +387,15 @@ class _UserDetailModalState extends State<UserDetailModal> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 6),
                 const Row(
                   children: [
                     Icon(Icons.zoom_in, size: 14, color: Color(0xFF0284C7)),
