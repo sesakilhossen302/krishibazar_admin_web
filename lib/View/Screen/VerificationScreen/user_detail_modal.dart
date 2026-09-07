@@ -306,7 +306,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                                 userId: widget.user.id,
                                 status: VerificationStatus.inProgress,
                                 adminNote: _noteController.text,
-                               ),
+                              ),
                               icon: const Icon(Icons.autorenew_rounded, size: 16),
                               label: const Text('প্রক্রিয়াধীন (In Progress 🔄)'),
                               style: ElevatedButton.styleFrom(
