@@ -188,7 +188,55 @@ class AdminRepository extends ChangeNotifier {
           }
         }
 
-        if (loadedFarmers.isNotEmpty) _farmers = loadedFarmers;
+        if (loadedFarmers.isNotEmpty) {
+          _farmers = loadedFarmers;
+          // Re-link existing products if farmer photos were missing
+          if (_products.isNotEmpty) {
+            _products = _products.map((p) {
+              if (p.farmerPhotoUrl.isEmpty) {
+                final match = _farmers.cast<FarmerVerificationRecord?>().firstWhere(
+                  (f) => f != null && (
+                    (p.farmerId.isNotEmpty && f.id == p.farmerId) ||
+                    f.name.trim().toLowerCase() == p.farmerName.trim().toLowerCase() ||
+                    (p.farmerPhone.isNotEmpty && f.phone.replaceAll(RegExp(r'\D'), '') == p.farmerPhone.replaceAll(RegExp(r'\D'), ''))
+                  ),
+                  orElse: () => null,
+                );
+                if (match != null && match.photoUrl != null && match.photoUrl!.isNotEmpty) {
+                  return AdminProductApprovalRecord(
+                    id: p.id,
+                    farmerId: p.farmerId.isNotEmpty ? p.farmerId : match.id,
+                    farmerName: p.farmerName,
+                    farmerPhone: p.farmerPhone.isNotEmpty ? p.farmerPhone : match.phone,
+                    farmerPhotoUrl: match.photoUrl!,
+                    farmerDistrict: p.farmerDistrict,
+                    farmerVerified: p.farmerVerified || match.status == VerificationStatus.verified,
+                    title: p.title,
+                    category: p.category,
+                    quantity: p.quantity,
+                    remainingQuantity: p.remainingQuantity,
+                    unit: p.unit,
+                    unitLabel: p.unitLabel,
+                    pricePerUnit: p.pricePerUnit,
+                    minPrice: p.minPrice,
+                    location: p.location,
+                    availableDate: p.availableDate,
+                    harvestDate: p.harvestDate,
+                    qualityGrade: p.qualityGrade,
+                    description: p.description,
+                    imageUrls: p.imageUrls,
+                    videoUrl: p.videoUrl,
+                    videoNote: p.videoNote,
+                    isApproved: p.isApproved,
+                    createdAt: p.createdAt,
+                    emoji: p.emoji,
+                  );
+                }
+              }
+              return p;
+            }).toList();
+          }
+        }
         if (loadedBuyers.isNotEmpty) _buyers = loadedBuyers;
 
       }
@@ -210,6 +258,7 @@ class AdminRepository extends ChangeNotifier {
         final List<AdminProductApprovalRecord> loaded = [];
         for (var p in data) {
           final id = p['id']?.toString() ?? '';
+          final farmerId = p['farmer_id']?.toString() ?? '';
           final title = p['title']?.toString() ?? '';
           final farmerName = p['farmer_name']?.toString() ?? 'কৃষক';
           final location = p['location']?.toString() ?? p['farmer_district']?.toString() ?? 'বাংলাদেশ';
@@ -224,9 +273,20 @@ class AdminRepository extends ChangeNotifier {
           final description = p['description']?.toString() ?? '';
           final status = (p['status'] ?? 'active').toString();
           final isApproved = status == 'active';
-          final farmerPhone = p['farmer_phone']?.toString() ?? '';
+
+          // Match with _farmers to retrieve farmer's uploaded photo and phone!
+          final matchingFarmer = _farmers.cast<FarmerVerificationRecord?>().firstWhere(
+            (f) => f != null && (f.id == farmerId || f.name.trim().toLowerCase() == farmerName.trim().toLowerCase()),
+            orElse: () => null,
+          );
+          final farmerPhone = (p['farmer_phone']?.toString().isNotEmpty == true)
+              ? p['farmer_phone'].toString()
+              : (matchingFarmer?.phone ?? '');
+          final farmerPhotoUrl = (matchingFarmer?.photoUrl != null && matchingFarmer!.photoUrl!.isNotEmpty)
+              ? matchingFarmer.photoUrl!
+              : AdminApiService.formatMediaUrl(p['farmer_photo']?.toString() ?? '');
           final farmerDistrict = p['farmer_district']?.toString() ?? '';
-          final farmerVerified = p['farmer_verified'] == true;
+          final farmerVerified = p['farmer_verified'] == true || (matchingFarmer?.status == VerificationStatus.verified);
 
           // Images
           final List<String> imageUrls = [];
@@ -279,10 +339,12 @@ class AdminRepository extends ChangeNotifier {
 
           loaded.add(AdminProductApprovalRecord(
             id: id,
+            farmerId: farmerId,
             emoji: emoji,
             title: title,
             farmerName: farmerName,
             farmerPhone: farmerPhone,
+            farmerPhotoUrl: farmerPhotoUrl,
             farmerDistrict: farmerDistrict,
             farmerVerified: farmerVerified,
             location: location,
@@ -399,10 +461,12 @@ class AdminRepository extends ChangeNotifier {
       final old = _products[idx];
       _products[idx] = AdminProductApprovalRecord(
         id: old.id,
+        farmerId: old.farmerId,
         emoji: old.emoji,
         title: old.title,
         farmerName: old.farmerName,
         farmerPhone: old.farmerPhone,
+        farmerPhotoUrl: old.farmerPhotoUrl,
         farmerDistrict: old.farmerDistrict,
         farmerVerified: old.farmerVerified,
         location: old.location,
@@ -438,10 +502,12 @@ class AdminRepository extends ChangeNotifier {
       final old = _products[idx];
       _products[idx] = AdminProductApprovalRecord(
         id: old.id,
+        farmerId: old.farmerId,
         emoji: old.emoji,
         title: old.title,
         farmerName: old.farmerName,
         farmerPhone: old.farmerPhone,
+        farmerPhotoUrl: old.farmerPhotoUrl,
         farmerDistrict: old.farmerDistrict,
         farmerVerified: old.farmerVerified,
         location: old.location,
@@ -529,10 +595,12 @@ class AdminRepository extends ChangeNotifier {
     _products = [
       AdminProductApprovalRecord(
         id: 'p1',
+        farmerId: 'f1',
         emoji: '🥔',
         title: 'টাটকা ডায়মন্ড লাল আলু (গ্রেড A)',
         farmerName: 'মো: আব্দুল রহিম',
         farmerPhone: '01709-122333',
+        farmerPhotoUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=600&q=80',
         farmerDistrict: 'রাজশাহী',
         farmerVerified: true,
         location: 'গোদাগাড়ী, রাজশাহী',
@@ -559,10 +627,12 @@ class AdminRepository extends ChangeNotifier {
       ),
       AdminProductApprovalRecord(
         id: 'p2',
+        farmerId: 'f2',
         emoji: '🍅',
         title: 'দেশি পাকা টমেটো (১০০০ কেজি)',
         farmerName: 'খলিলুর রহমান',
         farmerPhone: '01892-120934',
+        farmerPhotoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=600&q=80',
         farmerDistrict: 'দিনাজপুর',
         farmerVerified: true,
         location: 'বীরগঞ্জ, দিনাজপুর',
@@ -663,6 +733,73 @@ class AdminRepository extends ChangeNotifier {
       rating: farmer.rating,
       reviewsCount: farmer.reviewsCount,
     );
+    notifyListeners();
+  }
+
+  void openFarmerDetailFromProduct(AdminProductApprovalRecord product) {
+    closeProductDetail();
+
+    final matching = _farmers.cast<FarmerVerificationRecord?>().firstWhere(
+      (f) => f != null && (
+        (product.farmerId.isNotEmpty && f.id == product.farmerId) ||
+        f.name.trim().toLowerCase() == product.farmerName.trim().toLowerCase() ||
+        (product.farmerPhone.isNotEmpty && f.phone.replaceAll(RegExp(r'\D'), '') == product.farmerPhone.replaceAll(RegExp(r'\D'), ''))
+      ),
+      orElse: () => null,
+    );
+
+    final farmerProductsCount = _products.where((p) =>
+      p.farmerId == product.farmerId ||
+      p.farmerName.trim().toLowerCase() == product.farmerName.trim().toLowerCase() ||
+      (product.farmerPhone.isNotEmpty && p.farmerPhone.replaceAll(RegExp(r'\D'), '') == product.farmerPhone.replaceAll(RegExp(r'\D'), ''))
+    ).length;
+
+    final photo = (matching?.photoUrl != null && matching!.photoUrl!.isNotEmpty)
+        ? matching.photoUrl
+        : product.farmerPhotoUrl;
+
+    if (matching != null) {
+      activeUserForDetail = UserDetailRecord(
+        id: matching.id,
+        name: matching.name,
+        phone: matching.phone.isNotEmpty ? matching.phone : product.farmerPhone,
+        email: matching.email,
+        nid: matching.nid,
+        location: matching.location.isNotEmpty ? matching.location : product.location,
+        role: UserRole.farmer,
+        status: matching.status,
+        farmerType: matching.farmerType,
+        nidFrontUrl: matching.nidFrontUrl,
+        nidBackUrl: matching.nidBackUrl,
+        photoUrl: photo,
+        krishiCardDocUrl: matching.krishiCardDocUrl,
+        adminNotes: matching.adminNotes,
+        nidStatus: matching.nidStatus,
+        nidRejectionNote: matching.nidRejectionNote,
+        productsCount: farmerProductsCount > matching.productsCount ? farmerProductsCount : matching.productsCount,
+        offersCount: matching.offersCount,
+        activeOrdersCount: matching.activeOrdersCount,
+        completedOrders: matching.completedOrders,
+        totalEarnings: matching.totalEarnings,
+        rating: matching.rating,
+        reviewsCount: matching.reviewsCount,
+      );
+    } else {
+      activeUserForDetail = UserDetailRecord(
+        id: product.farmerId.isNotEmpty ? product.farmerId : 'farmer_${product.id}',
+        name: product.farmerName,
+        phone: product.farmerPhone,
+        email: '',
+        nid: 'যাচাই করা হয়নি',
+        location: product.location,
+        role: UserRole.farmer,
+        status: product.farmerVerified ? VerificationStatus.verified : VerificationStatus.pending,
+        nidFrontUrl: '',
+        nidBackUrl: '',
+        photoUrl: photo,
+        productsCount: farmerProductsCount,
+      );
+    }
     notifyListeners();
   }
 

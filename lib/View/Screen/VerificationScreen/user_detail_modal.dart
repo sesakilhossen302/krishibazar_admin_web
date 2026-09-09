@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../../../Core/Network/admin_api_service.dart';
 import '../../../global/Model/admin_models.dart';
 import '../../../global/controller/admin_repository.dart';
 
@@ -261,7 +262,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                           const SizedBox(height: 16),
 
                           // 1.1 User Live Activity Stats (Products, Offers, Orders, Earnings, Rating, Reviews)
-                          _buildUserActivityStatsSection(isBuyer),
+                          _buildUserActivityStatsSection(isBuyer, repo),
 
                           const SizedBox(height: 16),
 
@@ -276,6 +277,11 @@ class _UserDetailModalState extends State<UserDetailModal> {
                             _buildBuyerDetailsSection()
                           else
                             _buildFarmerDetailsSection(),
+
+                          const SizedBox(height: 24),
+
+                          // 3.1 All Listed Products by this Farmer
+                          _buildUserProductsSection(repo),
 
                           const SizedBox(height: 24),
 
@@ -344,7 +350,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                 child: ClipOval(
                   child: (widget.user.photoUrl != null && widget.user.photoUrl!.isNotEmpty)
                       ? Image.network(
-                          widget.user.photoUrl!,
+                          AdminApiService.formatMediaUrl(widget.user.photoUrl!),
                           fit: BoxFit.cover,
                           errorBuilder: (c, e, s) => _buildAvatarFallback(isBuyer),
                         )
@@ -470,6 +476,31 @@ class _UserDetailModalState extends State<UserDetailModal> {
   }
 
   Widget _buildAvatarFallback(bool isBuyer) {
+    final name = widget.user.name.trim();
+    if (name.isNotEmpty && name != 'অজ্ঞাত') {
+      final initial = name.characters.first.toUpperCase();
+      return Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isBuyer
+                ? [const Color(0xFFD97706), const Color(0xFFF59E0B)]
+                : [const Color(0xFF166534), const Color(0xFF22C55E)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Center(
+          child: Text(
+            initial,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
     return Container(
       color: isBuyer ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
       child: Center(
@@ -657,8 +688,15 @@ class _UserDetailModalState extends State<UserDetailModal> {
   }
 
   // 1.1 USER LIVE ACTIVITY & STATS SECTION
-  Widget _buildUserActivityStatsSection(bool isBuyer) {
-    final productsCount = widget.user.productsCount;
+  Widget _buildUserActivityStatsSection(bool isBuyer, AdminRepository repo) {
+    final matchingProducts = repo.products.where((p) =>
+      p.farmerId == widget.user.id ||
+      p.farmerName.trim().toLowerCase() == widget.user.name.trim().toLowerCase() ||
+      (widget.user.phone.isNotEmpty && p.farmerPhone.replaceAll(RegExp(r'\D'), '') == widget.user.phone.replaceAll(RegExp(r'\D'), ''))
+    ).toList();
+    final productsCount = isBuyer
+        ? widget.user.productsCount
+        : (matchingProducts.length > widget.user.productsCount ? matchingProducts.length : widget.user.productsCount);
     final offersCount = widget.user.offersCount;
     final activeOrders = widget.user.activeOrdersCount;
     final completedOrders = widget.user.completedOrders;
@@ -1066,6 +1104,537 @@ class _UserDetailModalState extends State<UserDetailModal> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  String _toBnDigits(num value) {
+    const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    const bn = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+    String s = value.toString();
+    for (int i = 0; i < 10; i++) {
+      s = s.replaceAll(en[i], bn[i]);
+    }
+    return s;
+  }
+
+  // 3.1 ALL LISTED PRODUCTS BY THIS FARMER / USER
+  Widget _buildUserProductsSection(AdminRepository repo) {
+    final isBuyer = widget.user.role == UserRole.buyer;
+
+    if (isBuyer) {
+      final userDemands = repo.demands.where((d) =>
+        d.buyerName.trim().toLowerCase() == widget.user.name.trim().toLowerCase() ||
+        (widget.user.phone.isNotEmpty && d.buyerPhone.replaceAll(RegExp(r'\D'), '') == widget.user.phone.replaceAll(RegExp(r'\D'), ''))
+      ).toList();
+
+      return Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF3C7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.campaign_rounded, size: 20, color: Color(0xFFB45309)),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'পাইকারের পোস্টকৃত ক্রয়ের চাহিদা',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFB45309),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'মোট ${_toBnDigits(userDemands.length)} টি চাহিদা',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'এই পাইকার কর্তৃক পোস্ট করা ক্রয়ের চাহিদা ও রিকোয়ারমেন্টসমূহ',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (userDemands.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: const Center(
+                  child: Text(
+                    'এই পাইকারের কোনো ক্রয়ের চাহিদা বর্তমানে নেই।',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                  ),
+                ),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: userDemands.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final demand = userDemands[index];
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(demand.emoji, style: const TextStyle(fontSize: 28)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                demand.title,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                'প্রয়োজন: ${_toBnDigits(demand.requiredQuantity.toInt())} ${demand.unitLabel} • বাজেট: ${demand.budgetRange}',
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () => repo.openDemandDetail(demand),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0284C7),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            elevation: 0,
+                          ),
+                          child: const Text('বিস্তারিত', style: TextStyle(color: Colors.white, fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      );
+    }
+
+    // Farmer products list
+    final userProducts = repo.products.where((p) =>
+      p.farmerId == widget.user.id ||
+      p.farmerName.trim().toLowerCase() == widget.user.name.trim().toLowerCase() ||
+      (widget.user.phone.isNotEmpty && p.farmerPhone.replaceAll(RegExp(r'\D'), '') == widget.user.phone.replaceAll(RegExp(r'\D'), ''))
+    ).toList();
+
+    final activeCount = userProducts.where((p) => p.isApproved).length;
+    final pendingCount = userProducts.where((p) => !p.isApproved).length;
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section Title and Badges Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.agriculture_rounded,
+                      size: 22,
+                      color: Color(0xFF166534),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            'কৃষকের সকল পণ্য লিস্টিং',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF166534),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              'মোট ${_toBnDigits(userProducts.length)} টি পণ্য',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'এই কৃষকের খামারের উৎপাদিত ও অ্যাপে তালিকাভুক্ত সকল ফসলের তালিকা',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              if (userProducts.isNotEmpty)
+                Row(
+                  children: [
+                    if (activeCount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.only(right: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '✅ সক্রিয়: ${_toBnDigits(activeCount)} টি',
+                          style: const TextStyle(
+                            color: Color(0xFF166534),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    if (pendingCount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFEDD5),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '⏳ অপেক্ষমাণ: ${_toBnDigits(pendingCount)} টি',
+                          style: const TextStyle(
+                            color: Color(0xFFEA580C),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Content
+          if (userProducts.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.inventory_2_outlined, size: 40, color: Color(0xFF94A3B8)),
+                  SizedBox(height: 10),
+                  Text(
+                    'এই কৃষকের কোনো পণ্য বর্তমানে তালিকায় পাওয়া যায়নি',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'কৃষক নতুন পণ্য লিস্টিং করলে তা এখানে স্বয়ংক্রিয়ভাবে প্রদর্শিত হবে',
+                    style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: userProducts.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final product = userProducts[index];
+                return _buildProductListItemCard(product, repo);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProductListItemCard(AdminProductApprovalRecord product, AdminRepository repo) {
+    final hasImages = product.imageUrls.isNotEmpty;
+    final primaryImage = hasImages ? AdminApiService.formatMediaUrl(product.imageUrls.first) : '';
+
+    return InkWell(
+      onTap: () => repo.openProductDetail(product),
+      borderRadius: BorderRadius.circular(12),
+      hoverColor: const Color(0xFFF0FDF4),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: product.isApproved ? const Color(0xFFE2E8F0) : const Color(0xFFFED7AA),
+          ),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Product Thumbnail
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 72,
+                height: 72,
+                color: Colors.white,
+                child: primaryImage.isNotEmpty
+                    ? Image.network(
+                        primaryImage,
+                        fit: BoxFit.cover,
+                        errorBuilder: (ctx, err, stack) => Center(
+                          child: Text(product.emoji, style: const TextStyle(fontSize: 32)),
+                        ),
+                      )
+                    : Center(
+                        child: Text(product.emoji, style: const TextStyle(fontSize: 32)),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Main Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          product.title,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0F172A),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          product.category,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          product.qualityGrade,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF92400E),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 4,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.sell_outlined, size: 14, color: Color(0xFFEA580C)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '৳${_toBnDigits(product.pricePerUnit.toInt())} / ${product.unitLabel}',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFFEA580C),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.inventory_2_outlined, size: 14, color: Color(0xFF166534)),
+                          const SizedBox(width: 4),
+                          Text(
+                            'মোট: ${_toBnDigits(product.quantity.toInt())} ${product.unitLabel} (অবশিষ্ট: ${_toBnDigits(product.remainingQuantity.toInt())} ${product.unitLabel})',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF334155),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (product.location.isNotEmpty)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF64748B)),
+                            const SizedBox(width: 4),
+                            Text(
+                              product.location,
+                              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(width: 14),
+
+            // Status & Action Button
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: product.isApproved ? const Color(0xFFDCFCE7) : const Color(0xFFFFEDD5),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    product.isApproved ? 'সক্রিয় (Active)' : 'পর্যালোচনায় (Pending)',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: product.isApproved ? const Color(0xFF166534) : const Color(0xFFEA580C),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton.icon(
+                  onPressed: () => repo.openProductDetail(product),
+                  icon: const Icon(Icons.visibility_outlined, size: 14, color: Colors.white),
+                  label: const Text(
+                    'পণ্য বিস্তারিত →',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF166534),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                    elevation: 0,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

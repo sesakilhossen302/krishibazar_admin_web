@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import '../../../../Core/Network/admin_api_service.dart';
 import '../../../../Utils/AppColors/app_colors.dart';
 import '../../../../global/Model/admin_models.dart';
 import '../../../../global/controller/admin_repository.dart';
@@ -221,7 +222,7 @@ class _ProductDetailAdminModalState extends State<ProductDetailAdminModal> {
                       const SizedBox(height: 20),
 
                       // Farmer & Farm Details Card
-                      _buildFarmerCard(product),
+                      _buildFarmerCard(product, repo),
                       const SizedBox(height: 20),
 
                       // Crop Description
@@ -682,94 +683,297 @@ class _ProductDetailAdminModalState extends State<ProductDetailAdminModal> {
     );
   }
 
-  Widget _buildFarmerCard(AdminProductApprovalRecord product) {
+  Widget _buildFarmerCard(AdminProductApprovalRecord product, AdminRepository repo) {
+    final matchingFarmer = repo.farmers.cast<FarmerVerificationRecord?>().firstWhere(
+      (f) => f != null && (
+        (product.farmerId.isNotEmpty && f.id == product.farmerId) ||
+        f.name.trim().toLowerCase() == product.farmerName.trim().toLowerCase() ||
+        (product.farmerPhone.isNotEmpty && f.phone.replaceAll(RegExp(r'\D'), '') == product.farmerPhone.replaceAll(RegExp(r'\D'), ''))
+      ),
+      orElse: () => null,
+    );
+
+    String resolvedPhoto = product.farmerPhotoUrl.isNotEmpty
+        ? product.farmerPhotoUrl
+        : (matchingFarmer?.photoUrl ?? '');
+    if (resolvedPhoto.isNotEmpty) {
+      resolvedPhoto = AdminApiService.formatMediaUrl(resolvedPhoto);
+    }
+
+    final farmerProducts = repo.products.where((p) =>
+      p.farmerId == product.farmerId ||
+      p.farmerName.trim().toLowerCase() == product.farmerName.trim().toLowerCase() ||
+      (product.farmerPhone.isNotEmpty && p.farmerPhone.replaceAll(RegExp(r'\D'), '') == product.farmerPhone.replaceAll(RegExp(r'\D'), ''))
+    ).toList();
+    final int totalProductsCount = farmerProducts.isNotEmpty
+        ? farmerProducts.length
+        : (matchingFarmer?.productsCount ?? 1);
+
+    final isFarmerVerified = product.farmerVerified || (matchingFarmer?.status == VerificationStatus.verified);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'কৃষক ও খামারের তথ্য',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-          const SizedBox(height: 12),
+          // Section Header
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDCFCE7),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(Icons.person, color: Color(0xFF166534), size: 28),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          product.farmerName,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                        if (product.farmerVerified) ...[
-                          const SizedBox(width: 6),
-                          const Icon(Icons.verified, color: Color(0xFF166534), size: 16),
-                        ],
-                      ],
+              Row(
+                children: [
+                  const Text(
+                    'কৃষক ও খামারের তথ্য',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '📍 ${product.location}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                  ],
-                ),
-              ),
-              if (product.farmerPhone.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.phone, size: 14, color: Color(0xFF166534)),
-                      const SizedBox(width: 6),
-                      Text(
-                        product.farmerPhone,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
-                        ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDCFCE7),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'মোট ${_toBnDigits(totalProductsCount)} টি পণ্য লিস্টিং',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF166534),
                       ),
-                    ],
+                    ),
+                  ),
+                ],
+              ),
+              // View Full Profile Action Button
+              ElevatedButton.icon(
+                onPressed: () => repo.openFarmerDetailFromProduct(product),
+                icon: const Icon(Icons.person_search_rounded, size: 15, color: Colors.white),
+                label: const Text(
+                  'ইউজার প্রোফাইল ও তথ্য দেখুন →',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF166534),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  elevation: 0,
+                ),
+              ),
             ],
           ),
+          const SizedBox(height: 14),
+
+          // Clickable Farmer Row
+          InkWell(
+            onTap: () => repo.openFarmerDetailFromProduct(product),
+            borderRadius: BorderRadius.circular(12),
+            hoverColor: const Color(0xFFF0FDF4),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: [
+                  // Real Photo or Fallback Avatar
+                  Tooltip(
+                    message: 'কৃষকের প্রোফাইল ও বিস্তারিত দেখতে ক্লিক করুন',
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isFarmerVerified ? const Color(0xFF16A34A) : const Color(0xFFCBD5E1),
+                          width: 2.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: ClipOval(
+                        child: resolvedPhoto.isNotEmpty
+                            ? Image.network(
+                                resolvedPhoto,
+                                width: 56,
+                                height: 56,
+                                fit: BoxFit.cover,
+                                loadingBuilder: (ctx, child, progress) {
+                                  if (progress == null) return child;
+                                  return const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF166534)),
+                                    ),
+                                  );
+                                },
+                                errorBuilder: (ctx, err, stack) => _buildFarmerAvatarFallback(product.farmerName),
+                              )
+                            : _buildFarmerAvatarFallback(product.farmerName),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Name, Verification, Location & Stats
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                product.farmerName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isFarmerVerified) ...[
+                              const SizedBox(width: 6),
+                              const Icon(Icons.verified, color: Color(0xFF166534), size: 18),
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFDCFCE7),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text(
+                                  'ভেরিফাইড কৃষক',
+                                  style: TextStyle(
+                                    color: Color(0xFF166534),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 14, color: Color(0xFF64748B)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                product.location,
+                                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '🌾 মোট ${_toBnDigits(totalProductsCount)} টি পণ্য লিস্টিং করেছেন • সম্পূর্ণ প্রোফাইল ও সব তথ্য দেখতে ক্লিক করুন',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF166534),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Phone Badge & Arrow
+                  if (product.farmerPhone.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F5F9),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.phone, size: 14, color: Color(0xFF166534)),
+                          const SizedBox(width: 6),
+                          Text(
+                            product.farmerPhone,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+
+                  // Arrow forward circle
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF0FDF4),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 14,
+                      color: Color(0xFF166534),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildFarmerAvatarFallback(String name) {
+    final initial = name.trim().isNotEmpty ? name.trim().characters.first.toUpperCase() : 'ক';
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF166534), Color(0xFF22C55E)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initial,
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
       ),
     );
   }

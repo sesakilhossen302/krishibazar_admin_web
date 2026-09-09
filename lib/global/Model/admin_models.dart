@@ -243,10 +243,12 @@ class BuyerVerificationRecord {
 
 class AdminProductApprovalRecord {
   final String id;
+  final String farmerId;
   final String emoji;
   final String title;
   final String farmerName;
   final String farmerPhone;
+  final String farmerPhotoUrl;
   final String farmerDistrict;
   final bool farmerVerified;
   final String location;
@@ -270,10 +272,12 @@ class AdminProductApprovalRecord {
 
   AdminProductApprovalRecord({
     required this.id,
+    this.farmerId = '',
     required this.emoji,
     required this.title,
     required this.farmerName,
     this.farmerPhone = '',
+    this.farmerPhotoUrl = '',
     this.farmerDistrict = '',
     this.farmerVerified = true,
     required this.location,
