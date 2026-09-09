@@ -387,54 +387,120 @@ class AdminRepository extends ChangeNotifier {
         final List<AdminDemandMonitoringRecord> loaded = [];
         for (var d in data) {
           final id = d['id']?.toString() ?? '';
-          final title = d['product_title']?.toString() ?? '';
-          final buyerStore = d['buyer_store']?.toString() ?? d['buyer_name']?.toString() ?? 'ক্রেতা';
-          final buyerName = d['buyer_name']?.toString() ?? '';
-          final buyerPhone = d['buyer_phone']?.toString() ?? '';
+          final title = d['product_title']?.toString() ?? d['title']?.toString() ?? '';
+          final buyerId = d['buyer_id']?.toString() ?? '';
+          final buyerStore = (d['buyer_business_name'] ?? d['buyer_store'] ?? d['buyer_name'] ?? 'দোকানদার').toString();
+          final buyerName = (d['buyer_name'] ?? d['buyer_business_name'] ?? '').toString();
+          String buyerPhone = (d['buyer_phone'] ?? '').toString();
+          final buyerVerified = d['buyer_verified'] == true;
+          String buyerPhotoUrl = AdminApiService.formatMediaUrl(d['buyer_photo_url']?.toString());
+
+          // Cross-reference with loaded buyers if photo or phone is missing
+          if (buyerPhotoUrl.isEmpty || buyerPhone.isEmpty) {
+            final match = _buyers.cast<BuyerVerificationRecord?>().firstWhere(
+              (b) => b != null && (
+                (buyerId.isNotEmpty && b.id == buyerId) ||
+                (buyerPhone.isNotEmpty && b.phone.replaceAll(RegExp(r'\D'), '') == buyerPhone.replaceAll(RegExp(r'\D'), '')) ||
+                (buyerStore.isNotEmpty && b.storeName.trim().toLowerCase() == buyerStore.trim().toLowerCase()) ||
+                (buyerName.isNotEmpty && b.ownerName.trim().toLowerCase() == buyerName.trim().toLowerCase())
+              ),
+              orElse: () => null,
+            );
+            if (match != null) {
+              if (buyerPhotoUrl.isEmpty && match.photoUrl != null && match.photoUrl!.isNotEmpty) {
+                buyerPhotoUrl = match.photoUrl!;
+              }
+              if (buyerPhone.isEmpty && match.phone.isNotEmpty) {
+                buyerPhone = match.phone;
+              }
+            }
+          }
+
           final deliveryLocation = d['required_location']?.toString() ?? 'বাংলাদেশ';
-          final qty = (d['quantity'] is num) ? (d['quantity'] as num).toDouble() : 0.0;
+          final qty = (d['required_quantity'] is num)
+              ? (d['required_quantity'] as num).toDouble()
+              : ((d['quantity'] is num)
+                  ? (d['quantity'] as num).toDouble()
+                  : (double.tryParse(d['required_quantity']?.toString() ?? d['quantity']?.toString() ?? '') ?? 0.0));
+
           final rawUnit = d['unit']?.toString() ?? 'কেজি';
           ProductUnit unit = ProductUnit.kg;
           if (rawUnit.contains('মন')) {
             unit = ProductUnit.mon;
           } else if (rawUnit.contains('টন')) {
             unit = ProductUnit.ton;
+          } else if (rawUnit.contains('পিস') || rawUnit.contains('আঁটি')) {
+            unit = ProductUnit.piece;
           }
 
-          final budgetMin = d['target_price_min']?.toString() ?? '';
-          final budgetMax = d['target_price_max']?.toString() ?? '';
-          final budgetRange = (budgetMin.isNotEmpty && budgetMax.isNotEmpty)
-              ? '৳$budgetMin - ৳$budgetMax / $rawUnit'
-              : (budgetMax.isNotEmpty ? '৳$budgetMax / $rawUnit' : 'আলোচনা সাপেক্ষে');
+          final minPrice = (d['min_expected_price'] is num)
+              ? (d['min_expected_price'] as num).toDouble()
+              : ((d['target_price_min'] is num)
+                  ? (d['target_price_min'] as num).toDouble()
+                  : (double.tryParse(d['min_expected_price']?.toString() ?? d['target_price_min']?.toString() ?? '') ?? 0.0));
 
-          final offersCount = (d['offers_count'] is num) ? (d['offers_count'] as num).toInt() : 0;
+          final maxPrice = (d['max_expected_price'] is num)
+              ? (d['max_expected_price'] as num).toDouble()
+              : ((d['target_price_max'] is num)
+                  ? (d['target_price_max'] as num).toDouble()
+                  : (double.tryParse(d['max_expected_price']?.toString() ?? d['target_price_max']?.toString() ?? '') ?? 0.0));
+
+          final String budgetRange;
+          if (minPrice > 0 && maxPrice > 0) {
+            budgetRange = '৳${minPrice.toInt()} - ৳${maxPrice.toInt()} / $rawUnit';
+          } else if (maxPrice > 0) {
+            budgetRange = '৳${maxPrice.toInt()} / $rawUnit';
+          } else if (minPrice > 0) {
+            budgetRange = '৳${minPrice.toInt()} / $rawUnit';
+          } else {
+            budgetRange = 'আলোচনা সাপেক্ষে';
+          }
+
+          final offersCount = (d['offers_count'] is num)
+              ? (d['offers_count'] as num).toInt()
+              : (int.tryParse(d['offers_count']?.toString() ?? '') ?? 0);
           final status = (d['status'] ?? 'active').toString();
           final category = d['category']?.toString() ?? 'শাকসবজি';
-          final description = d['description']?.toString() ?? '';
-          final deadlineDate = d['deadline_date']?.toString() ?? '';
+          final qualityGrade = d['quality_grade']?.toString() ?? 'গ্রেড A';
+          final description = (d['additional_note'] ?? d['description'] ?? '').toString();
+          final deadlineDate = (d['required_date'] ?? d['deadline_date'] ?? '').toString();
 
           String emoji = '📦';
           if (category.contains('সবজি')) {
             emoji = '🥦';
           } else if (category.contains('ফল')) {
             emoji = '🍎';
+          } else if (category.contains('ধান') || category.contains('চাল')) {
+            emoji = '🌾';
+          } else if (category.contains('গম')) {
+            emoji = '🌾';
+          } else if (category.contains('মাছ')) {
+            emoji = '🐟';
           } else if (title.contains('পেঁয়াজ')) {
             emoji = '🧅';
           } else if (title.contains('আলু')) {
             emoji = '🥔';
+          } else if (title.contains('টমেটো')) {
+            emoji = '🍅';
           }
 
           loaded.add(AdminDemandMonitoringRecord(
             id: id,
             emoji: emoji,
             title: title,
+            buyerId: buyerId,
             buyerStore: buyerStore,
             buyerName: buyerName,
             buyerPhone: buyerPhone,
+            buyerPhotoUrl: buyerPhotoUrl,
+            buyerVerified: buyerVerified,
             deliveryLocation: deliveryLocation,
             requiredQuantity: qty,
             unit: unit,
             unitLabel: rawUnit,
+            minExpectedPrice: minPrice,
+            maxExpectedPrice: maxPrice,
+            qualityGrade: qualityGrade,
             budgetRange: budgetRange,
             offersCount: offersCount,
             status: status == 'active' ? 'সক্রিয় (Active)' : status,
@@ -445,10 +511,8 @@ class AdminRepository extends ChangeNotifier {
           ));
         }
 
-        if (loaded.isNotEmpty) {
-          _demands = loaded;
-          notifyListeners();
-        }
+        _demands = loaded;
+        notifyListeners();
       }
     } catch (e) {
       debugPrint('⚠️ [ADMIN REPO] Error fetching demands: $e');
@@ -659,27 +723,7 @@ class AdminRepository extends ChangeNotifier {
       ),
     ];
 
-    _demands = [
-      AdminDemandMonitoringRecord(
-        id: 'd1',
-        emoji: '🧅',
-        title: 'দেশি গোল পেঁয়াজ (জরুরি প্রয়োজন)',
-        buyerStore: 'মেসার্স সততা এগ্রো ট্রেডার্স',
-        buyerName: 'আলহাজ্ব শফিকুল ইসলাম',
-        buyerPhone: '01911-543210',
-        deliveryLocation: 'কারওয়ান বাজার, ঢাকা',
-        requiredQuantity: 3000,
-        unit: ProductUnit.kg,
-        unitLabel: 'কেজি',
-        budgetRange: '৳৬৫ - ৳৭২ / কেজি',
-        offersCount: 3,
-        status: 'সক্রিয় (Active)',
-        category: 'মসলা',
-        description: 'সরাসরি কৃষক ভাইদের কাছ থেকে শুকনো, ভালো মানের গোল দেশি পেঁয়াজ প্রয়োজন। ডেলিভারি স্পট কারওয়ান বাজার আড়ত। নগদ পেমেন্ট করা হবে।',
-        deadlineDate: '20-09-2026',
-        createdAt: '2026-09-08 11:00',
-      ),
-    ];
+    _demands = [];
 
     _orders = [
       AdminOrderRecord(
@@ -832,6 +876,40 @@ class AdminRepository extends ChangeNotifier {
       reviewsCount: buyer.reviewsCount,
     );
     notifyListeners();
+  }
+
+  void openUserDetailFromDemand(AdminDemandMonitoringRecord demand) {
+    if (activeDemandForDetail != null) {
+      activeDemandForDetail = null;
+    }
+
+    final match = _buyers.cast<BuyerVerificationRecord?>().firstWhere(
+      (b) => b != null && (
+        (demand.buyerId.isNotEmpty && b.id == demand.buyerId) ||
+        (demand.buyerPhone.isNotEmpty && b.phone.replaceAll(RegExp(r'\D'), '') == demand.buyerPhone.replaceAll(RegExp(r'\D'), '')) ||
+        (demand.buyerStore.isNotEmpty && b.storeName.trim().toLowerCase() == demand.buyerStore.trim().toLowerCase()) ||
+        (demand.buyerName.isNotEmpty && b.ownerName.trim().toLowerCase() == demand.buyerName.trim().toLowerCase())
+      ),
+      orElse: () => null,
+    );
+
+    if (match != null) {
+      openUserDetailFromBuyer(match);
+    } else {
+      final buyer = BuyerVerificationRecord(
+        id: demand.buyerId.isNotEmpty ? demand.buyerId : 'buyer_${demand.id}',
+        storeName: demand.buyerStore,
+        ownerName: demand.buyerName.isNotEmpty ? demand.buyerName : demand.buyerStore,
+        tradeLicense: 'যাচাই প্রয়োজন',
+        location: demand.deliveryLocation,
+        email: '',
+        phone: demand.buyerPhone,
+        nid: 'NID জমা দেননি',
+        photoUrl: demand.buyerPhotoUrl,
+        status: demand.buyerVerified ? VerificationStatus.verified : VerificationStatus.pending,
+      );
+      openUserDetailFromBuyer(buyer);
+    }
   }
 
   void closeUserDetail() {

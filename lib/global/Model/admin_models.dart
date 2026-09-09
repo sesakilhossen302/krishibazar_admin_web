@@ -19,7 +19,7 @@ extension VerificationStatusExt on VerificationStatus {
   }
 }
 
-enum ProductUnit { kg, mon, ton }
+enum ProductUnit { kg, mon, ton, piece }
 
 extension ProductUnitExt on ProductUnit {
   String get labelBn {
@@ -30,6 +30,8 @@ extension ProductUnitExt on ProductUnit {
         return 'মন';
       case ProductUnit.ton:
         return 'টন';
+      case ProductUnit.piece:
+        return 'টি';
     }
   }
 }
@@ -217,13 +219,13 @@ class BuyerVerificationRecord {
     required this.ownerName,
     required this.tradeLicense,
     required this.location,
-    required this.onTimePayPercent,
+    this.onTimePayPercent = 100,
     required this.email,
     required this.phone,
     required this.nid,
     required this.status,
-    required this.nidFrontUrl,
-    required this.nidBackUrl,
+    this.nidFrontUrl = '',
+    this.nidBackUrl = '',
     this.tradeLicenseUrl,
     this.businessLicenseNo,
     this.photoUrl,
@@ -308,14 +310,20 @@ class AdminDemandMonitoringRecord {
   final String id;
   final String emoji;
   final String title;
+  final String buyerId;
   final String buyerStore;
   final String buyerName;
   final String buyerPhone;
+  final String buyerPhotoUrl;
+  final bool buyerVerified;
   final String deliveryLocation;
   final double requiredQuantity;
   final ProductUnit unit;
   final String unitLabel;
+  final double minExpectedPrice;
+  final double maxExpectedPrice;
   final String budgetRange;
+  final String qualityGrade;
   final int offersCount;
   final String status;
   final String category;
@@ -327,14 +335,20 @@ class AdminDemandMonitoringRecord {
     required this.id,
     required this.emoji,
     required this.title,
+    this.buyerId = '',
     required this.buyerStore,
     this.buyerName = '',
     this.buyerPhone = '',
+    this.buyerPhotoUrl = '',
+    this.buyerVerified = false,
     required this.deliveryLocation,
     required this.requiredQuantity,
     required this.unit,
     String? unitLabel,
+    this.minExpectedPrice = 0.0,
+    this.maxExpectedPrice = 0.0,
     required this.budgetRange,
+    this.qualityGrade = 'গ্রেড A',
     required this.offersCount,
     required this.status,
     this.category = 'শাকসবজি',

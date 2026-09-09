@@ -174,13 +174,31 @@ class DemandDetailAdminModal extends StatelessWidget {
                                 ),
                               ],
                             ),
-                            if (demand.deadlineDate.isNotEmpty) ...[
+                            if (demand.qualityGrade.isNotEmpty || demand.deadlineDate.isNotEmpty) ...[
                               const SizedBox(height: 12),
-                              _buildTile(
-                                label: 'চাহিদার সময়সীমা',
-                                value: demand.deadlineDate,
-                                icon: Icons.timer_outlined,
-                                iconColor: const Color(0xFF475569),
+                              Row(
+                                children: [
+                                  if (demand.qualityGrade.isNotEmpty)
+                                    Expanded(
+                                      child: _buildTile(
+                                        label: 'মান / গ্রেড',
+                                        value: demand.qualityGrade,
+                                        icon: Icons.verified_outlined,
+                                        iconColor: const Color(0xFF16A34A),
+                                      ),
+                                    ),
+                                  if (demand.qualityGrade.isNotEmpty && demand.deadlineDate.isNotEmpty)
+                                    const SizedBox(width: 12),
+                                  if (demand.deadlineDate.isNotEmpty)
+                                    Expanded(
+                                      child: _buildTile(
+                                        label: 'চাহিদার সময়সীমা',
+                                        value: demand.deadlineDate,
+                                        icon: Icons.timer_outlined,
+                                        iconColor: const Color(0xFF475569),
+                                      ),
+                                    ),
+                                ],
                               ),
                             ],
                           ],
@@ -188,7 +206,7 @@ class DemandDetailAdminModal extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
 
-                      // Buyer Store Info Card
+                      // Buyer Store Info Card with Clickable Profile
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -199,75 +217,147 @@ class DemandDetailAdminModal extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'ক্রেতা ও প্রতিষ্ঠানের তথ্য',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
                             Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFDCFCE7),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Center(
-                                    child: Icon(Icons.storefront, color: Color(0xFF166534), size: 26),
+                                const Text(
+                                  'ক্রেতা ও প্রতিষ্ঠানের তথ্য',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0F172A),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        demand.buyerStore,
-                                        style: const TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF0F172A),
+                                OutlinedButton.icon(
+                                  onPressed: () => repo.openUserDetailFromDemand(demand),
+                                  icon: const Icon(Icons.badge_outlined, size: 16),
+                                  label: const Text(
+                                    'দোকানদারের পূর্ণ প্রোফাইল ও যাচাই ➔',
+                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF166534),
+                                    side: const BorderSide(color: Color(0xFF166534), width: 1.2),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    backgroundColor: const Color(0xFFF0FDF4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            InkWell(
+                              onTap: () => repo.openUserDetailFromDemand(demand),
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Container(
+                                      width: 52,
+                                      height: 52,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFFFF3E0),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: const Color(0xFFFFCC80), width: 2),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: demand.buyerPhotoUrl.isNotEmpty
+                                          ? Image.network(
+                                              demand.buyerPhotoUrl,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                                Icons.storefront_rounded,
+                                                color: Color(0xFFE65100),
+                                                size: 28,
+                                              ),
+                                            )
+                                          : const Icon(
+                                              Icons.storefront_rounded,
+                                              color: Color(0xFFE65100),
+                                              size: 28,
+                                            ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Flexible(
+                                                child: Text(
+                                                  demand.buyerStore,
+                                                  style: const TextStyle(
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF0F172A),
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              if (demand.buyerVerified) ...[
+                                                const SizedBox(width: 6),
+                                                const Icon(
+                                                  Icons.verified,
+                                                  color: Color(0xFF16A34A),
+                                                  size: 16,
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          if (demand.buyerName.isNotEmpty)
+                                            Text(
+                                              'প্রোপাইটার: ${demand.buyerName}',
+                                              style: const TextStyle(
+                                                fontSize: 13,
+                                                color: Color(0xFF475569),
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (demand.buyerPhone.isNotEmpty)
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: const Color(0xFFCBD5E1)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.phone, size: 14, color: Color(0xFF166534)),
+                                            const SizedBox(width: 6),
+                                            Text(
+                                              demand.buyerPhone,
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      if (demand.buyerName.isNotEmpty) ...[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'প্রোপাইটার: ${demand.buyerName}',
-                                          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
+                                    const SizedBox(width: 8),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      color: Color(0xFF94A3B8),
+                                      size: 20,
+                                    ),
+                                  ],
                                 ),
-                                if (demand.buyerPhone.isNotEmpty)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.phone, size: 14, color: Color(0xFF166534)),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          demand.buyerPhone,
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF0F172A),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
