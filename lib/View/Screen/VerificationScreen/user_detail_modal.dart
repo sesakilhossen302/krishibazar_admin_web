@@ -260,8 +260,14 @@ class _UserDetailModalState extends State<UserDetailModal> {
 
                           const SizedBox(height: 16),
 
+                          // 1.1 User Live Activity Stats (Products, Offers, Orders, Earnings, Rating, Reviews)
+                          _buildUserActivityStatsSection(isBuyer),
+
+                          const SizedBox(height: 16),
+
                           // 2. Location / Address Section (Card style with multiline wrap)
                           _buildLocationSection(),
+
 
                           const SizedBox(height: 16),
 
@@ -649,6 +655,166 @@ class _UserDetailModalState extends State<UserDetailModal> {
       },
     );
   }
+
+  // 1.1 USER LIVE ACTIVITY & STATS SECTION
+  Widget _buildUserActivityStatsSection(bool isBuyer) {
+    final productsCount = widget.user.productsCount;
+    final offersCount = widget.user.offersCount;
+    final activeOrders = widget.user.activeOrdersCount;
+    final completedOrders = widget.user.completedOrders;
+    final earnings = widget.user.totalEarnings;
+    final rating = widget.user.rating;
+    final reviews = widget.user.reviewsCount;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF166534).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.analytics_rounded, size: 18, color: Color(0xFF166534)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isBuyer ? 'ব্যবহারকারীর ব্যবসায়িক কার্যকলাপ ও অর্ডার পরিসংখ্যান' : 'ব্যবহারকারীর খামার কার্যকলাপ ও বিক্রি পরিসংখ্যান',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0F172A),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildStatPill(
+                icon: isBuyer ? Icons.campaign_rounded : Icons.inventory_2_rounded,
+                iconColor: const Color(0xFF166534),
+                bgColor: const Color(0xFFDCFCE7),
+                title: isBuyer ? 'মোট চাহিদা' : 'মোট পণ্য',
+                value: '$productsCount টি',
+              ),
+              if (isBuyer)
+                _buildStatPill(
+                  icon: Icons.local_offer_rounded,
+                  iconColor: const Color(0xFFEA580C),
+                  bgColor: const Color(0xFFFFEDD5),
+                  title: 'প্রাপ্ত অফারসমূহ',
+                  value: '$offersCount টি',
+                )
+              else
+                _buildStatPill(
+                  icon: Icons.check_circle_rounded,
+                  iconColor: const Color(0xFF059669),
+                  bgColor: const Color(0xFFD1FAE5),
+                  title: 'সম্পন্ন অর্ডার',
+                  value: '$completedOrders টি',
+                ),
+              _buildStatPill(
+                icon: Icons.local_shipping_rounded,
+                iconColor: const Color(0xFF2563EB),
+                bgColor: const Color(0xFFDBEAFE),
+                title: 'চলমান অর্ডার',
+                value: '$activeOrders টি',
+              ),
+              _buildStatPill(
+                icon: Icons.account_balance_wallet_rounded,
+                iconColor: const Color(0xFF7E22CE),
+                bgColor: const Color(0xFFF3E8FF),
+                title: isBuyer ? 'মোট ক্রয়/লেনদেন' : 'মোট আয়',
+                value: '৳${earnings.toInt()}',
+              ),
+              _buildStatPill(
+                icon: Icons.star_rounded,
+                iconColor: const Color(0xFFD97706),
+                bgColor: const Color(0xFFFEF3C7),
+                title: 'রেটিং ও রিভিউ',
+                value: rating > 0 ? '★ ${rating.toStringAsFixed(1)} ($reviews রিভিউ)' : '★ ০.০ (০ রিভিউ)',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatPill({
+    required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required String title,
+    required String value,
+  }) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: bgColor,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF0F172A),
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
 
   Widget _buildDetailTile({
     required IconData icon,

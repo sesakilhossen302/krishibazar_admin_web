@@ -95,6 +95,13 @@ class UserDetailRecord {
   final String adminNotes;
   final VerificationStatus nidStatus;
   final String nidRejectionNote;
+  final int productsCount;
+  final int offersCount;
+  final int activeOrdersCount;
+  final int completedOrders;
+  final double totalEarnings;
+  final double rating;
+  final int reviewsCount;
 
   UserDetailRecord({
     required this.id,
@@ -117,6 +124,13 @@ class UserDetailRecord {
     this.adminNotes = '',
     this.nidStatus = VerificationStatus.pending,
     this.nidRejectionNote = '',
+    this.productsCount = 0,
+    this.offersCount = 0,
+    this.activeOrdersCount = 0,
+    this.completedOrders = 0,
+    this.totalEarnings = 0.0,
+    this.rating = 0.0,
+    this.reviewsCount = 0,
   });
 }
 
@@ -136,6 +150,13 @@ class FarmerVerificationRecord {
   final String adminNotes;
   final VerificationStatus nidStatus;
   final String nidRejectionNote;
+  final int productsCount;
+  final int offersCount;
+  final int activeOrdersCount;
+  final int completedOrders;
+  final double totalEarnings;
+  final double rating;
+  final int reviewsCount;
 
   FarmerVerificationRecord({
     required this.id,
@@ -153,6 +174,13 @@ class FarmerVerificationRecord {
     this.adminNotes = '',
     this.nidStatus = VerificationStatus.pending,
     this.nidRejectionNote = '',
+    this.productsCount = 0,
+    this.offersCount = 0,
+    this.activeOrdersCount = 0,
+    this.completedOrders = 0,
+    this.totalEarnings = 0.0,
+    this.rating = 0.0,
+    this.reviewsCount = 0,
   });
 }
 
@@ -175,6 +203,13 @@ class BuyerVerificationRecord {
   final String adminNotes;
   final VerificationStatus nidStatus;
   final String nidRejectionNote;
+  final int productsCount;
+  final int offersCount;
+  final int activeOrdersCount;
+  final int completedOrders;
+  final double totalEarnings;
+  final double rating;
+  final int reviewsCount;
 
   BuyerVerificationRecord({
     required this.id,
@@ -195,8 +230,16 @@ class BuyerVerificationRecord {
     this.adminNotes = '',
     this.nidStatus = VerificationStatus.pending,
     this.nidRejectionNote = '',
+    this.productsCount = 0,
+    this.offersCount = 0,
+    this.activeOrdersCount = 0,
+    this.completedOrders = 0,
+    this.totalEarnings = 0.0,
+    this.rating = 0.0,
+    this.reviewsCount = 0,
   });
 }
+
 
 class AdminProductApprovalRecord {
   final String id;

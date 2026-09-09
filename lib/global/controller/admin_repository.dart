@@ -95,6 +95,16 @@ class AdminRepository extends ChangeNotifier {
           final nidBack = AdminApiService.formatMediaUrl(u['nid_back_url']);
           final photo = AdminApiService.formatMediaUrl(u['photo_url']);
 
+          final productsCount = (u['products_count'] is num) ? (u['products_count'] as num).toInt() : 0;
+          final offersCount = (u['offers_count'] is num) ? (u['offers_count'] as num).toInt() : 0;
+          final activeOrdersCount = (u['active_orders_count'] is num) ? (u['active_orders_count'] as num).toInt() : 0;
+          final completedOrders = (u['completed_orders'] is num) ? (u['completed_orders'] as num).toInt() : 0;
+          final totalEarnings = (u['total_earnings'] is num) 
+              ? (u['total_earnings'] as num).toDouble() 
+              : ((u['total_spent'] is num) ? (u['total_spent'] as num).toDouble() : 0.0);
+          final rating = (u['rating'] is num) ? (u['rating'] as num).toDouble() : 0.0;
+          final reviewsCount = (u['reviews_count'] is num) ? (u['reviews_count'] as num).toInt() : 0;
+
           if (role == 'farmer') {
             loadedFarmers.add(FarmerVerificationRecord(
               id: id,
@@ -112,6 +122,13 @@ class AdminRepository extends ChangeNotifier {
               adminNotes: adminNote,
               nidStatus: nidStatus,
               nidRejectionNote: nidRejectionNote,
+              productsCount: productsCount,
+              offersCount: offersCount,
+              activeOrdersCount: activeOrdersCount,
+              completedOrders: completedOrders,
+              totalEarnings: totalEarnings,
+              rating: rating,
+              reviewsCount: reviewsCount,
             ));
           } else {
             loadedBuyers.add(BuyerVerificationRecord(
@@ -133,12 +150,20 @@ class AdminRepository extends ChangeNotifier {
               adminNotes: adminNote,
               nidStatus: nidStatus,
               nidRejectionNote: nidRejectionNote,
+              productsCount: productsCount,
+              offersCount: offersCount,
+              activeOrdersCount: activeOrdersCount,
+              completedOrders: completedOrders,
+              totalEarnings: totalEarnings,
+              rating: rating,
+              reviewsCount: reviewsCount,
             ));
           }
         }
 
         if (loadedFarmers.isNotEmpty) _farmers = loadedFarmers;
         if (loadedBuyers.isNotEmpty) _buyers = loadedBuyers;
+
       }
     } catch (e) {
       debugPrint('Error loading backend users into Admin: $e');
@@ -280,6 +305,13 @@ class AdminRepository extends ChangeNotifier {
       adminNotes: farmer.adminNotes,
       nidStatus: farmer.nidStatus,
       nidRejectionNote: farmer.nidRejectionNote,
+      productsCount: farmer.productsCount,
+      offersCount: farmer.offersCount,
+      activeOrdersCount: farmer.activeOrdersCount,
+      completedOrders: farmer.completedOrders,
+      totalEarnings: farmer.totalEarnings,
+      rating: farmer.rating,
+      reviewsCount: farmer.reviewsCount,
     );
     notifyListeners();
   }
@@ -304,6 +336,13 @@ class AdminRepository extends ChangeNotifier {
       adminNotes: buyer.adminNotes,
       nidStatus: buyer.nidStatus,
       nidRejectionNote: buyer.nidRejectionNote,
+      productsCount: buyer.productsCount,
+      offersCount: buyer.offersCount,
+      activeOrdersCount: buyer.activeOrdersCount,
+      completedOrders: buyer.completedOrders,
+      totalEarnings: buyer.totalEarnings,
+      rating: buyer.rating,
+      reviewsCount: buyer.reviewsCount,
     );
     notifyListeners();
   }
@@ -341,6 +380,13 @@ class AdminRepository extends ChangeNotifier {
         adminNotes: adminNote,
         nidStatus: activeUserForDetail!.nidStatus,
         nidRejectionNote: activeUserForDetail!.nidRejectionNote,
+        productsCount: activeUserForDetail!.productsCount,
+        offersCount: activeUserForDetail!.offersCount,
+        activeOrdersCount: activeUserForDetail!.activeOrdersCount,
+        completedOrders: activeUserForDetail!.completedOrders,
+        totalEarnings: activeUserForDetail!.totalEarnings,
+        rating: activeUserForDetail!.rating,
+        reviewsCount: activeUserForDetail!.reviewsCount,
       );
     }
 
@@ -362,6 +408,12 @@ class AdminRepository extends ChangeNotifier {
         adminNotes: adminNote,
         nidStatus: _farmers[fIdx].nidStatus,
         nidRejectionNote: _farmers[fIdx].nidRejectionNote,
+        productsCount: _farmers[fIdx].productsCount,
+        offersCount: _farmers[fIdx].offersCount,
+        activeOrdersCount: _farmers[fIdx].activeOrdersCount,
+        totalEarnings: _farmers[fIdx].totalEarnings,
+        rating: _farmers[fIdx].rating,
+        reviewsCount: _farmers[fIdx].reviewsCount,
       );
     }
 
@@ -386,10 +438,17 @@ class AdminRepository extends ChangeNotifier {
         adminNotes: adminNote,
         nidStatus: _buyers[bIdx].nidStatus,
         nidRejectionNote: _buyers[bIdx].nidRejectionNote,
+        productsCount: _buyers[bIdx].productsCount,
+        offersCount: _buyers[bIdx].offersCount,
+        activeOrdersCount: _buyers[bIdx].activeOrdersCount,
+        totalEarnings: _buyers[bIdx].totalEarnings,
+        rating: _buyers[bIdx].rating,
+        reviewsCount: _buyers[bIdx].reviewsCount,
       );
     }
 
     notifyListeners();
+
 
     // Persist to backend database
     String statusStr = 'pending';
@@ -436,6 +495,13 @@ class AdminRepository extends ChangeNotifier {
         adminNotes: rejectionReason.isNotEmpty ? rejectionReason : activeUserForDetail!.adminNotes,
         nidStatus: nidStatus,
         nidRejectionNote: rejectionReason,
+        productsCount: activeUserForDetail!.productsCount,
+        offersCount: activeUserForDetail!.offersCount,
+        activeOrdersCount: activeUserForDetail!.activeOrdersCount,
+        completedOrders: activeUserForDetail!.completedOrders,
+        totalEarnings: activeUserForDetail!.totalEarnings,
+        rating: activeUserForDetail!.rating,
+        reviewsCount: activeUserForDetail!.reviewsCount,
       );
     }
 
@@ -457,6 +523,13 @@ class AdminRepository extends ChangeNotifier {
         adminNotes: rejectionReason.isNotEmpty ? rejectionReason : _farmers[fIdx].adminNotes,
         nidStatus: nidStatus,
         nidRejectionNote: rejectionReason,
+        productsCount: _farmers[fIdx].productsCount,
+        offersCount: _farmers[fIdx].offersCount,
+        activeOrdersCount: _farmers[fIdx].activeOrdersCount,
+        completedOrders: _farmers[fIdx].completedOrders,
+        totalEarnings: _farmers[fIdx].totalEarnings,
+        rating: _farmers[fIdx].rating,
+        reviewsCount: _farmers[fIdx].reviewsCount,
       );
     }
 
@@ -481,6 +554,13 @@ class AdminRepository extends ChangeNotifier {
         adminNotes: rejectionReason.isNotEmpty ? rejectionReason : _buyers[bIdx].adminNotes,
         nidStatus: nidStatus,
         nidRejectionNote: rejectionReason,
+        productsCount: _buyers[bIdx].productsCount,
+        offersCount: _buyers[bIdx].offersCount,
+        activeOrdersCount: _buyers[bIdx].activeOrdersCount,
+        completedOrders: _buyers[bIdx].completedOrders,
+        totalEarnings: _buyers[bIdx].totalEarnings,
+        rating: _buyers[bIdx].rating,
+        reviewsCount: _buyers[bIdx].reviewsCount,
       );
     }
 
