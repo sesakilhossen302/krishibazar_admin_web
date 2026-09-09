@@ -15,14 +15,54 @@ class UserDetailModal extends StatefulWidget {
 
 class _UserDetailModalState extends State<UserDetailModal> {
   late final TextEditingController _noteController;
+  VerificationStatus? _selectedStatusToUpdate;
+  bool _isUpdatingStatus = false;
 
-  final List<String> _quickNotes = [
-    'এনআইডি কার্ডের ছবি অস্পষ্ট, পরিষ্কার ছবি পুনরায় দিন',
-    'নাম ও তথ্যের সাথে এনআইডি কার্ডের অমিল রয়েছে',
-    'এনআইডি কার্ডের উভয় পাশের ছবি আপলোড করুন',
-    'প্রদত্ত ট্রেড লাইসেন্স বা কৃষি কার্ডের মেয়াদ শেষ',
-    'সকল তথ্য সঠিক রয়েছে ও ভেরিফাইড',
-  ];
+  List<String> _getQuickNotesForStatus(VerificationStatus status) {
+    switch (status) {
+      case VerificationStatus.verified:
+        return [
+          'সকল তথ্য ও কাগজপত্র সঠিক রয়েছে এবং ভেরিফাইড',
+          'অ্যাকাউন্ট সফলভাবে যাচাই ও সক্রিয় করা হলো',
+          'অভিনন্দন! আপনার ভেরিফিকেশন সফল হয়েছে',
+        ];
+      case VerificationStatus.inProgress:
+        return [
+          'আপনার কাগজপত্র যাচাই প্রক্রিয়া চলছে',
+          'জাতীয় পরিচয়পত্র ও তথ্যাদি পর্যালোচনায় রয়েছে',
+          'খুব শীঘ্রই পর্যালোচনার ফলাফল জানানো হবে',
+        ];
+      case VerificationStatus.pending:
+        return [
+          'অ্যাকাউন্ট ভেরিফিকেশন পর্যালোচনার তালিকায় রয়েছে',
+          'প্রয়োজনীয় তথ্যাদি পর্যালোচনার অপেক্ষায়',
+        ];
+      case VerificationStatus.suspended:
+        return [
+          'সন্দেহজনক কার্যক্রমের কারণে সাময়িক স্থগিত',
+          'নীতিমালা লঙ্ঘনের অভিযোগে অ্যাকাউন্ট স্থগিত রাখা হলো',
+          'বিস্তারিত তথ্যের জন্য সাপোর্টে যোগাযোগ করুন',
+        ];
+      case VerificationStatus.rejected:
+        return [
+          'এনআইডি কার্ডের ছবি অস্পষ্ট, পরিষ্কার ছবি পুনরায় দিন',
+          'নাম ও তথ্যের সাথে এনআইডি কার্ডের অমিল রয়েছে',
+          'এনআইডি কার্ডের উভয় পাশের ছবি আপলোড করুন',
+          'প্রদত্ত ট্রেড লাইসেন্স বা কৃষি কার্ডের মেয়াদ শেষ',
+          'জাল বা অসম্পূর্ণ কাগজপত্র পাওয়ার কারণে বাতিল',
+        ];
+    }
+  }
+
+  void _selectStatusForUpdate(VerificationStatus status) {
+    setState(() {
+      _selectedStatusToUpdate = status;
+      final notes = _getQuickNotesForStatus(status);
+      if (notes.isNotEmpty) {
+        _noteController.text = notes.first;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -38,6 +78,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
   void dispose() {
     _noteController.dispose();
     super.dispose();
+
   }
 
   void _openImagePreview(BuildContext context, String title, String imgUrl) {
@@ -242,12 +283,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
 
                           const SizedBox(height: 24),
 
-                          // 6. Admin Notes & Quick Suggestions
-                          _buildAdminNoteSection(),
-
-                          const SizedBox(height: 24),
-
-                          // 7. Overall Account Verification Decision Bar
+                          // 6. Overall Account Verification Decision Bar & Interactive Note Flow
                           _buildAccountActionButtons(repo),
 
                           const SizedBox(height: 12),
@@ -987,6 +1023,35 @@ class _UserDetailModalState extends State<UserDetailModal> {
             ],
           ),
 
+          if (widget.user.adminNotes.contains('নতুন এনআইডি') || (widget.user.nidStatus == VerificationStatus.pending && (widget.user.nidFrontUrl.isNotEmpty || widget.user.nidBackUrl.isNotEmpty))) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFF60A5FA), width: 1.5),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.mark_email_unread_rounded, size: 16, color: Color(0xFF2563EB)),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '🔔 ইউজার নতুন এনআইডি কার্ড জমা দিয়েছেন (অনুমোদন বা পুনঃযাচাই প্রয়োজন)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E40AF),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
           if (isNidRejected && widget.user.nidRejectionNote.isNotEmpty) ...[
             const SizedBox(height: 10),
             Container(
@@ -1318,251 +1383,408 @@ class _UserDetailModalState extends State<UserDetailModal> {
     );
   }
 
-  // 6. ADMIN NOTE INPUT WITH QUICK PRESETS
-  Widget _buildAdminNoteSection() {
+  // 6. INTERACTIVE ACCOUNT STATUS DECISION BAR & NOTE CONFIRMATION FLOW
+  Widget _buildAccountActionButtons(AdminRepository repo) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.edit_note_rounded, size: 20, color: Color(0xFF0F172A)),
-            SizedBox(width: 8),
-            Text(
-              'অ্যাডমিন নোট / মন্তব্যের বিবরণ (Admin Review Notes)',
+            const Icon(Icons.rule_folder_rounded, size: 20, color: Color(0xFF0F172A)),
+            const SizedBox(width: 8),
+            const Text(
+              'সামগ্রিক অ্যাকাউন্ট স্ট্যাটাস ও অনুমোদন অ্যাকশন:',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF0F172A),
               ),
             ),
+            const Spacer(),
+            if (_selectedStatusToUpdate != null)
+              TextButton.icon(
+                onPressed: () {
+                  setState(() => _selectedStatusToUpdate = null);
+                },
+                icon: const Icon(Icons.close, size: 16, color: Color(0xFF64748B)),
+                label: const Text('বাতিল করুন', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              ),
           ],
         ),
         const SizedBox(height: 4),
         const Text(
-          'এখানে যা লিখবেন তা ব্যবহারকারী তার অ্যাপের প্রোফাইল বা লগইনে দেখতে পাবেন:',
-          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+          'যে কোনো একটি স্ট্যাটাস বাটনে ক্লিক করলে মন্তব্য/নোট লেখার অপশন আসবে এবং নোটসহ চূড়ান্ত আপডেট কনফার্ম করতে পারবেন:',
+          style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
 
-        // Quick Reason Suggestion Chips
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: _quickNotes.map((note) {
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _noteController.text = note;
-                });
-              },
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add_circle_outline_rounded, size: 12, color: Color(0xFF0284C7)),
-                    const SizedBox(width: 4),
-                    Text(
-                      note,
-                      style: const TextStyle(fontSize: 11, color: Color(0xFF334155), fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 8),
-
-        TextField(
-          controller: _noteController,
-          maxLines: 2,
-          style: const TextStyle(fontSize: 13),
-          decoration: InputDecoration(
-            hintText: 'যাচাই অনুমোদন, প্রত্যাখ্যান বা পর্যালোচনার কারণ লিখুন...',
-            hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
-            ),
-            contentPadding: const EdgeInsets.all(12),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 7. OVERALL ACCOUNT STATUS ACTIONS (APPROVE, IN REVIEW, PENDING, SUSPEND, REJECT)
-  Widget _buildAccountActionButtons(AdminRepository repo) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'সামগ্রিক অ্যাকাউন্ট স্ট্যাটাস ও অনুমোদন অ্যাকশন:',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF334155),
-          ),
-        ),
-        const SizedBox(height: 10),
+        // 5 Status Selection Buttons
         Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
-            // Approve / Verified (Primary Emerald Green)
-            ElevatedButton.icon(
-              onPressed: () async {
-                await repo.updateUserStatus(
-                  userId: widget.user.id,
-                  status: VerificationStatus.verified,
-                  adminNote: _noteController.text,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${widget.user.name} এর সম্পূর্ণ অ্যাকাউন্ট যাচাই ও অনুমোদন করা হয়েছে ✅'),
-                      backgroundColor: const Color(0xFF15803D),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.check_circle_rounded, size: 18),
-              label: const Text('সম্পূর্ণ অ্যাকাউন্ট অনুমোদন (Approve ✅)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF15803D),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
+            // 1. Approve / Verified
+            _buildStatusSelectButton(
+              status: VerificationStatus.verified,
+              label: 'অনুমোদন (Approve ✅)',
+              icon: Icons.check_circle_rounded,
+              bgColor: const Color(0xFF15803D),
+              textColor: Colors.white,
             ),
 
-            // In Progress (Sky Blue)
-            ElevatedButton.icon(
-              onPressed: () async {
-                await repo.updateUserStatus(
-                  userId: widget.user.id,
-                  status: VerificationStatus.inProgress,
-                  adminNote: _noteController.text,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${widget.user.name} এর প্রোফাইল পর্যালোচনাধীন রাখা হলো 🔄'),
-                      backgroundColor: const Color(0xFF0284C7),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.autorenew_rounded, size: 18),
-              label: const Text('প্রক্রিয়াধীন (In Progress 🔄)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0284C7),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
+            // 2. In Progress
+            _buildStatusSelectButton(
+              status: VerificationStatus.inProgress,
+              label: 'প্রক্রিয়াধীন (In Progress 🔄)',
+              icon: Icons.autorenew_rounded,
+              bgColor: const Color(0xFF0284C7),
+              textColor: Colors.white,
             ),
 
-            // Pending (Amber)
-            ElevatedButton.icon(
-              onPressed: () async {
-                await repo.updateUserStatus(
-                  userId: widget.user.id,
-                  status: VerificationStatus.pending,
-                  adminNote: _noteController.text,
-                );
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${widget.user.name} এর অ্যাকাউন্ট অপেক্ষমাণ রাখা হলো ⏳'),
-                      backgroundColor: const Color(0xFFD97706),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
-              icon: const Icon(Icons.hourglass_top_rounded, size: 18),
-              label: const Text('অপেক্ষমাণ (Pending ⏳)'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFD97706),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                elevation: 0,
-              ),
+            // 3. Pending
+            _buildStatusSelectButton(
+              status: VerificationStatus.pending,
+              label: 'অপেক্ষমাণ (Pending ⏳)',
+              icon: Icons.hourglass_top_rounded,
+              bgColor: const Color(0xFFD97706),
+              textColor: Colors.white,
             ),
 
-            // Suspend (Outlined Orange)
-            OutlinedButton.icon(
-              onPressed: () {
-                repo.suspendUser(
-                  userId: widget.user.id,
-                  adminNote: _noteController.text,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${widget.user.name} এর অ্যাকাউন্ট সাময়িক স্থগিত করা হলো 🚫'),
-                    backgroundColor: const Color(0xFFEA580C),
-                    behavior: SnackBarBehavior.floating,
+            // 4. Suspend
+            _buildStatusSelectButton(
+              status: VerificationStatus.suspended,
+              label: 'স্থগিত (Suspend 🚫)',
+              icon: Icons.block_rounded,
+              bgColor: const Color(0xFFEA580C),
+              textColor: Colors.white,
+            ),
+
+            // 5. Reject
+            _buildStatusSelectButton(
+              status: VerificationStatus.rejected,
+              label: 'বাতিল (Reject ❌)',
+              icon: Icons.cancel_rounded,
+              bgColor: const Color(0xFFDC2626),
+              textColor: Colors.white,
+            ),
+          ],
+        ),
+
+        // Dynamic Note and Confirmation Panel (Appears on status button click!)
+        if (_selectedStatusToUpdate != null) ...[
+          const SizedBox(height: 16),
+          _buildNoteAndConfirmPanel(repo),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildStatusSelectButton({
+    required VerificationStatus status,
+    required String label,
+    required IconData icon,
+    required Color bgColor,
+    required Color textColor,
+  }) {
+    final isSelected = _selectedStatusToUpdate == status;
+
+    return InkWell(
+      onTap: () => _selectStatusForUpdate(status),
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: isSelected ? bgColor : bgColor.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? Colors.black87 : bgColor,
+            width: isSelected ? 2.5 : 1.2,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: bgColor.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
-                );
-              },
-              icon: const Icon(Icons.block_rounded, size: 16, color: Color(0xFFEA580C)),
-              label: const Text('স্থগিত (Suspend 🚫)', style: TextStyle(color: Color(0xFFEA580C))),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFEA580C)),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+                ]
+              : [],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? Icons.check_circle : icon,
+              size: 17,
+              color: isSelected ? textColor : bgColor,
             ),
-
-            // Reject / Delete (Outlined Red)
-            OutlinedButton.icon(
-              onPressed: () {
-                repo.deleteUser(
-                  userId: widget.user.id,
-                  adminNote: _noteController.text,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('${widget.user.name} এর আবেদন বাতিল ও মুছে ফেলা হয়েছে ❌'),
-                    backgroundColor: const Color(0xFFDC2626),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              },
-              icon: const Icon(Icons.cancel_rounded, size: 16, color: Color(0xFFDC2626)),
-              label: const Text('বাতিল / মুছুন (Reject ❌)', style: TextStyle(color: Color(0xFFDC2626))),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Color(0xFFDC2626)),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? textColor : bgColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 12.5,
               ),
             ),
           ],
         ),
-      ],
+      ),
     );
   }
+
+  Widget _buildNoteAndConfirmPanel(AdminRepository repo) {
+    final status = _selectedStatusToUpdate!;
+    final quickNotes = _getQuickNotesForStatus(status);
+
+    Color themeColor;
+    String statusTitle;
+    IconData statusIcon;
+
+    switch (status) {
+      case VerificationStatus.verified:
+        themeColor = const Color(0xFF15803D);
+        statusTitle = 'সম্পূর্ণ অ্যাকাউন্ট অনুমোদন (Verified ✅)';
+        statusIcon = Icons.check_circle_rounded;
+        break;
+      case VerificationStatus.inProgress:
+        themeColor = const Color(0xFF0284C7);
+        statusTitle = 'প্রক্রিয়াধীন রাখা (In Progress 🔄)';
+        statusIcon = Icons.autorenew_rounded;
+        break;
+      case VerificationStatus.pending:
+        themeColor = const Color(0xFFD97706);
+        statusTitle = 'অপেক্ষমাণ রাখা (Pending ⏳)';
+        statusIcon = Icons.hourglass_top_rounded;
+        break;
+      case VerificationStatus.suspended:
+        themeColor = const Color(0xFFEA580C);
+        statusTitle = 'অ্যাকাউন্ট সাময়িক স্থগিত (Suspend 🚫)';
+        statusIcon = Icons.block_rounded;
+        break;
+      case VerificationStatus.rejected:
+        themeColor = const Color(0xFFDC2626);
+        statusTitle = 'আবেদন বাতিল / প্রত্যাখ্যান (Reject ❌)';
+        statusIcon = Icons.cancel_rounded;
+        break;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: themeColor.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: themeColor.withValues(alpha: 0.45), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header showing selected status
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: themeColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(statusIcon, size: 18, color: themeColor),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'নির্বাচিত সিদ্ধান্ত: $statusTitle',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: themeColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'এই সিদ্ধান্তের সাথে ব্যবহারকারীকে যে নোট বা মন্তব্য পাঠাতে চান তা নির্বাচন বা টাইপ করুন (ব্যবহারকারী অ্যাপের নোটিফিকেশনে দেখতে পাবেন):',
+                      style: TextStyle(fontSize: 11.5, color: Color(0xFF475569)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Quick Suggestion Chips for this selected status
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: quickNotes.map((note) {
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    _noteController.text = note;
+                  });
+                },
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: themeColor.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_circle_outline_rounded, size: 13, color: themeColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        note,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF334155),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+
+          // Note Input Box
+          TextField(
+            controller: _noteController,
+            maxLines: 2,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'ব্যবহারকারীর জন্য সুনির্দিষ্ট মন্তব্য বা কারণ লিখুন...',
+              hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: themeColor.withValues(alpha: 0.3)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: themeColor, width: 1.8),
+              ),
+              contentPadding: const EdgeInsets.all(12),
+              suffixIcon: _noteController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 16, color: Colors.grey),
+                      onPressed: () => setState(() => _noteController.clear()),
+                    )
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Confirmation Action Buttons (Submit Note & Status Together!)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              OutlinedButton(
+                onPressed: _isUpdatingStatus
+                    ? null
+                    : () {
+                        setState(() => _selectedStatusToUpdate = null);
+                      },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF64748B),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('বাতিল করুন'),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: _isUpdatingStatus
+                    ? null
+                    : () async {
+                        setState(() => _isUpdatingStatus = true);
+                        try {
+                          final finalNote = _noteController.text.trim();
+                          await repo.updateUserStatus(
+                            userId: widget.user.id,
+                            status: _selectedStatusToUpdate!,
+                            adminNote: finalNote,
+                          );
+
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${widget.user.name} এর স্ট্যাটাস সফলভাবে আপডেট ও ব্যবহারকারীকে নোটিফিকেশন পাঠানো হয়েছে ✅',
+                                ),
+                                backgroundColor: themeColor,
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                            setState(() {
+                              _selectedStatusToUpdate = null;
+                            });
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('আপডেট করতে সমস্যা হয়েছে: $e'),
+                                backgroundColor: const Color(0xFFDC2626),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) {
+                            setState(() => _isUpdatingStatus = false);
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: _isUpdatingStatus
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.send_rounded, size: 17),
+                label: Text(
+                  _isUpdatingStatus
+                      ? 'আপডেট হচ্ছে...'
+                      : 'নোট ও স্ট্যাটাস কনফার্ম করুন (Confirm & Update 🚀)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
 }

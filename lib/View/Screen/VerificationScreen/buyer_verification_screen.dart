@@ -108,20 +108,37 @@ class BuyerVerificationScreen extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: isVerified ? const Color(0xFFDCFCE7) : const Color(0xFFFFEDD5),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                isVerified ? 'যাচাইকৃত (Verified ✅)' : 'অপেক্ষমাণ (Pending)',
-                                style: TextStyle(
-                                  color: isVerified ? const Color(0xFF166534) : const Color(0xFFEA580C),
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                _buildStatusBadge(buyer.status),
+                                if (buyer.adminNotes.contains('নতুন এনআইডি') || (buyer.nidStatus == VerificationStatus.pending && buyer.nidFrontUrl.isNotEmpty && buyer.status == VerificationStatus.pending)) ...[
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: const Color(0xFF3B82F6)),
+                                    ),
+                                    child: const Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.mark_email_unread_rounded, size: 12, color: Color(0xFF2563EB)),
+                                        SizedBox(width: 3),
+                                        Text(
+                                          'নতুন NID জমা 📄',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF1D4ED8),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -183,6 +200,56 @@ class BuyerVerificationScreen extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge(VerificationStatus status) {
+    Color bg;
+    Color fg;
+    String text;
+
+    switch (status) {
+      case VerificationStatus.verified:
+        bg = const Color(0xFFDCFCE7);
+        fg = const Color(0xFF166534);
+        text = 'যাচাইকৃত (Verified ✅)';
+        break;
+      case VerificationStatus.inProgress:
+        bg = const Color(0xFFE0F2FE);
+        fg = const Color(0xFF0284C7);
+        text = 'প্রক্রিয়াধীন (In Progress 🔄)';
+        break;
+      case VerificationStatus.suspended:
+        bg = const Color(0xFFFFEDD5);
+        fg = const Color(0xFFEA580C);
+        text = 'স্থগিত (Suspended 🚫)';
+        break;
+      case VerificationStatus.rejected:
+        bg = const Color(0xFFFEE2E2);
+        fg = const Color(0xFFDC2626);
+        text = 'বাতিলকৃত (Rejected ❌)';
+        break;
+      case VerificationStatus.pending:
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFFD97706);
+        text = 'অপেক্ষমাণ (Pending ⏳)';
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          color: fg,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
       ),
     );
   }

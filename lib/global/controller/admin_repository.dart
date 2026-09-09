@@ -67,7 +67,7 @@ class AdminRepository extends ChangeNotifier {
           if ((u['district'] ?? '').toString().isNotEmpty) locParts.add(u['district']);
           final location = locParts.isNotEmpty ? locParts.join(', ') : (u['district'] ?? 'বাংলাদেশ');
 
-          final rawStatus = (u['verification_status'] ?? '').toString().toLowerCase();
+          final rawStatus = (u['verification_status'] ?? '').toString().toLowerCase().replaceAll('_', '');
           VerificationStatus status = VerificationStatus.pending;
           if (rawStatus == 'verified') {
             status = VerificationStatus.verified;
@@ -77,6 +77,8 @@ class AdminRepository extends ChangeNotifier {
             status = VerificationStatus.inProgress;
           } else if (rawStatus == 'suspended') {
             status = VerificationStatus.suspended;
+          } else {
+            status = VerificationStatus.pending;
           }
 
           final adminNote = (u['admin_note'] ?? '').toString();
