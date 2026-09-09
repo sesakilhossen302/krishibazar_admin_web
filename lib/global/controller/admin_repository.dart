@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../Core/Network/admin_api_service.dart';
 import '../Model/admin_models.dart';
 
 class AdminRepository extends ChangeNotifier {
@@ -23,6 +24,8 @@ class AdminRepository extends ChangeNotifier {
   UserDetailRecord? activeUserForDetail;
   int activeNavIndex = 0;
   String searchQuery = '';
+  bool _isLoadingUsers = false;
+  bool get isLoadingUsers => _isLoadingUsers;
 
   void setActiveNavIndex(int index) {
     activeNavIndex = index;
@@ -36,6 +39,95 @@ class AdminRepository extends ChangeNotifier {
 
   AdminRepository() {
     _initDemoData();
+    fetchUsersFromBackend();
+  }
+
+  Future<void> fetchUsersFromBackend() async {
+    _isLoadingUsers = true;
+    notifyListeners();
+
+    try {
+      final data = await AdminApiService.fetchAllUsers();
+      if (data.isNotEmpty) {
+        final List<FarmerVerificationRecord> loadedFarmers = [];
+        final List<BuyerVerificationRecord> loadedBuyers = [];
+
+        for (var u in data) {
+          final role = (u['role'] ?? '').toString().toLowerCase();
+          final id = u['id']?.toString() ?? '';
+          final name = u['name']?.toString() ?? 'অজ্ঞাত';
+          final phone = u['phone']?.toString() ?? '';
+          final email = u['email']?.toString() ?? '';
+          final nid = (u['nid_or_doc'] ?? '').toString();
+
+          final List<String> locParts = [];
+          if ((u['address'] ?? '').toString().isNotEmpty) locParts.add(u['address']);
+          if ((u['union'] ?? '').toString().isNotEmpty) locParts.add(u['union']);
+          if ((u['upazila'] ?? '').toString().isNotEmpty) locParts.add(u['upazila']);
+          if ((u['district'] ?? '').toString().isNotEmpty) locParts.add(u['district']);
+          final location = locParts.isNotEmpty ? locParts.join(', ') : (u['district'] ?? 'বাংলাদেশ');
+
+          final rawStatus = (u['verification_status'] ?? '').toString().toLowerCase();
+          VerificationStatus status = VerificationStatus.pending;
+          if (rawStatus == 'verified') {
+            status = VerificationStatus.verified;
+          } else if (rawStatus == 'rejected') {
+            status = VerificationStatus.rejected;
+          } else if (rawStatus == 'inprogress') {
+            status = VerificationStatus.inProgress;
+          } else if (rawStatus == 'suspended') {
+            status = VerificationStatus.suspended;
+          }
+
+          final nidFront = AdminApiService.formatMediaUrl(u['nid_front_url']);
+          final nidBack = AdminApiService.formatMediaUrl(u['nid_back_url']);
+          final photo = AdminApiService.formatMediaUrl(u['photo_url']);
+
+          if (role == 'farmer') {
+            loadedFarmers.add(FarmerVerificationRecord(
+              id: id,
+              name: name,
+              phone: phone,
+              nid: nid.isNotEmpty ? nid : 'NID নেই',
+              location: location,
+              farmerType: (u['farmer_type'] != null && u['farmer_type'].toString().isNotEmpty) ? u['farmer_type'] : 'সাধারণ কৃষক',
+              email: email,
+              status: status,
+              nidFrontUrl: nidFront,
+              nidBackUrl: nidBack,
+              photoUrl: photo,
+              krishiCardDocUrl: AdminApiService.formatMediaUrl(u['krishi_card_doc_url']),
+            ));
+          } else {
+            loadedBuyers.add(BuyerVerificationRecord(
+              id: id,
+              storeName: (u['business_name'] ?? '').toString().isNotEmpty ? u['business_name'] : name,
+              ownerName: name,
+              tradeLicense: (u['trade_info'] ?? '').toString().isNotEmpty ? u['trade_info'] : 'ট্রেড লাইসেন্স নেই',
+              location: location,
+              onTimePayPercent: (u['payment_reliability'] is num) ? (u['payment_reliability'] as num).toInt() : 98,
+              email: email,
+              phone: phone,
+              nid: nid.isNotEmpty ? nid : 'NID নেই',
+              status: status,
+              nidFrontUrl: nidFront,
+              nidBackUrl: nidBack,
+              tradeLicenseUrl: AdminApiService.formatMediaUrl(u['trade_license_url']),
+              businessLicenseNo: u['business_type'],
+              photoUrl: photo,
+            ));
+          }
+        }
+
+        if (loadedFarmers.isNotEmpty) _farmers = loadedFarmers;
+        if (loadedBuyers.isNotEmpty) _buyers = loadedBuyers;
+      }
+    } catch (e) {
+      debugPrint('Error loading backend users into Admin: $e');
+    } finally {
+      _isLoadingUsers = false;
+      notifyListeners();
+    }
   }
 
   void _initDemoData() {
@@ -165,6 +257,8 @@ class AdminRepository extends ChangeNotifier {
       farmerType: farmer.farmerType,
       nidFrontUrl: farmer.nidFrontUrl,
       nidBackUrl: farmer.nidBackUrl,
+      photoUrl: farmer.photoUrl,
+      krishiCardDocUrl: farmer.krishiCardDocUrl,
       adminNotes: farmer.adminNotes,
     );
     notifyListeners();
@@ -186,6 +280,7 @@ class AdminRepository extends ChangeNotifier {
       nidFrontUrl: buyer.nidFrontUrl,
       nidBackUrl: buyer.nidBackUrl,
       tradeLicenseUrl: buyer.tradeLicenseUrl,
+      photoUrl: buyer.photoUrl,
       adminNotes: buyer.adminNotes,
     );
     notifyListeners();
@@ -196,11 +291,11 @@ class AdminRepository extends ChangeNotifier {
     notifyListeners();
   }
 
-  void updateUserStatus({
+  Future<void> updateUserStatus({
     required String userId,
     required VerificationStatus status,
     required String adminNote,
-  }) {
+  }) async {
     // Update active user detail
     if (activeUserForDetail?.id == userId) {
       activeUserForDetail = UserDetailRecord(
@@ -219,6 +314,8 @@ class AdminRepository extends ChangeNotifier {
         nidFrontUrl: activeUserForDetail!.nidFrontUrl,
         nidBackUrl: activeUserForDetail!.nidBackUrl,
         tradeLicenseUrl: activeUserForDetail!.tradeLicenseUrl,
+        photoUrl: activeUserForDetail!.photoUrl,
+        krishiCardDocUrl: activeUserForDetail!.krishiCardDocUrl,
         adminNotes: adminNote,
       );
     }
@@ -236,6 +333,8 @@ class AdminRepository extends ChangeNotifier {
         status: status,
         nidFrontUrl: _farmers[fIdx].nidFrontUrl,
         nidBackUrl: _farmers[fIdx].nidBackUrl,
+        photoUrl: _farmers[fIdx].photoUrl,
+        krishiCardDocUrl: _farmers[fIdx].krishiCardDocUrl,
         adminNotes: adminNote,
       );
     }
@@ -256,11 +355,21 @@ class AdminRepository extends ChangeNotifier {
         nidFrontUrl: _buyers[bIdx].nidFrontUrl,
         nidBackUrl: _buyers[bIdx].nidBackUrl,
         tradeLicenseUrl: _buyers[bIdx].tradeLicenseUrl,
+        businessLicenseNo: _buyers[bIdx].businessLicenseNo,
+        photoUrl: _buyers[bIdx].photoUrl,
         adminNotes: adminNote,
       );
     }
 
     notifyListeners();
+
+    // Persist to backend database
+    String statusStr = 'pending';
+    if (status == VerificationStatus.verified) statusStr = 'verified';
+    if (status == VerificationStatus.rejected) statusStr = 'rejected';
+    if (status == VerificationStatus.suspended) statusStr = 'suspended';
+
+    await AdminApiService.updateUserStatus(userId, statusStr);
   }
 
   void suspendUser({required String userId, required String adminNote}) {

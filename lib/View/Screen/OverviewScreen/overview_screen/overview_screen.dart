@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../Utils/AppColors/app_colors.dart';
+import '../../../../global/Model/admin_models.dart';
 import '../../../../global/controller/admin_repository.dart';
 
 class OverviewScreen extends StatelessWidget {
@@ -8,7 +9,7 @@ class OverviewScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    context.watch<AdminRepository>();
+    final repo = context.watch<AdminRepository>();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20.0),
@@ -62,8 +63,8 @@ class OverviewScreen extends StatelessWidget {
                     ),
                     _buildMetricCard(
                       title: 'নিবন্ধিত কৃষক',
-                      value: '১০ জন',
-                      subtitle: '৮ জন যাচাইকৃত',
+                      value: '${repo.farmers.length} জন',
+                      subtitle: '${repo.farmers.where((f) => f.status == VerificationStatus.verified).length} জন যাচাইকৃত',
                       icon: Icons.agriculture_rounded,
                       iconBg: const Color(0xFFDCFCE7),
                       iconColor: const Color(0xFF166534),
@@ -71,8 +72,8 @@ class OverviewScreen extends StatelessWidget {
                     ),
                     _buildMetricCard(
                       title: 'পাইকারি ক্রেতা',
-                      value: '১০ প্রতিষ্ঠান',
-                      subtitle: '৮ প্রতিষ্ঠান যাচাইকৃত',
+                      value: '${repo.buyers.length} প্রতিষ্ঠান',
+                      subtitle: '${repo.buyers.where((b) => b.status == VerificationStatus.verified).length} প্রতিষ্ঠান যাচাইকৃত',
                       icon: Icons.storefront_rounded,
                       iconBg: const Color(0xFFDCFCE7),
                       iconColor: const Color(0xFF166534),

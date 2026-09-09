@@ -17,13 +17,31 @@ class BuyerVerificationScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'ক্রেতা যাচাই ও অনুমোদন (${buyers.length} টি)',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'ক্রেতা যাচাই ও অনুমোদন (${buyers.length} টি)',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: repo.isLoadingUsers ? null : () => repo.fetchUsersFromBackend(),
+                icon: repo.isLoadingUsers
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('রিফ্রেশ করুন'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGold,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -54,6 +72,17 @@ class BuyerVerificationScreen extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFFFEF3C7),
+                              backgroundImage: (buyer.photoUrl != null && buyer.photoUrl!.isNotEmpty)
+                                  ? NetworkImage(buyer.photoUrl!)
+                                  : null,
+                              child: (buyer.photoUrl == null || buyer.photoUrl!.isEmpty)
+                                  ? const Icon(Icons.storefront_rounded, color: Color(0xFFD97706), size: 20)
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,

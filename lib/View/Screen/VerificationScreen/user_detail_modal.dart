@@ -162,12 +162,18 @@ class _UserDetailModalState extends State<UserDetailModal> {
                 Row(
                   children: [
                     CircleAvatar(
+                      radius: 24,
                       backgroundColor: isBuyer ? AppColors.primaryGold : AppColors.primaryGreen,
-                      child: Icon(
-                        isBuyer ? Icons.storefront_rounded : Icons.agriculture_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
+                      backgroundImage: (widget.user.photoUrl != null && widget.user.photoUrl!.isNotEmpty)
+                          ? NetworkImage(widget.user.photoUrl!)
+                          : null,
+                      child: (widget.user.photoUrl == null || widget.user.photoUrl!.isEmpty)
+                          ? Icon(
+                              isBuyer ? Icons.storefront_rounded : Icons.agriculture_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -252,11 +258,18 @@ class _UserDetailModalState extends State<UserDetailModal> {
                             ),
                           ],
                         ),
-                        if (isBuyer) ...[
+                        if (isBuyer && widget.user.tradeLicenseUrl != null && widget.user.tradeLicenseUrl!.isNotEmpty) ...[
                           const SizedBox(height: 12),
                           _buildDocCard(
                             title: 'ট্রেড লাইসেন্স (Trade License Document)',
-                            imgUrl: widget.user.tradeLicenseUrl ?? widget.user.nidFrontUrl,
+                            imgUrl: widget.user.tradeLicenseUrl!,
+                          ),
+                        ],
+                        if (!isBuyer && widget.user.krishiCardDocUrl != null && widget.user.krishiCardDocUrl!.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          _buildDocCard(
+                            title: 'কৃষি কার্ড / খামার নথি (Krishi Document)',
+                            imgUrl: widget.user.krishiCardDocUrl!,
                           ),
                         ],
                         const SizedBox(height: 20),

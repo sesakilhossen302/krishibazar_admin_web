@@ -17,13 +17,31 @@ class FarmerVerificationScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'কৃষক যাচাই ও অনুমোদন (${farmers.length} জন)',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'কৃষক যাচাই ও অনুমোদন (${farmers.length} জন)',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: repo.isLoadingUsers ? null : () => repo.fetchUsersFromBackend(),
+                icon: repo.isLoadingUsers
+                    ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.refresh_rounded, size: 16),
+                label: const Text('রিফ্রেশ করুন'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 16),
 
@@ -54,6 +72,17 @@ class FarmerVerificationScreen extends StatelessWidget {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: const Color(0xFFDCFCE7),
+                              backgroundImage: (farmer.photoUrl != null && farmer.photoUrl!.isNotEmpty)
+                                  ? NetworkImage(farmer.photoUrl!)
+                                  : null,
+                              child: (farmer.photoUrl == null || farmer.photoUrl!.isEmpty)
+                                  ? const Icon(Icons.person, color: Color(0xFF166534), size: 20)
+                                  : null,
+                            ),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
