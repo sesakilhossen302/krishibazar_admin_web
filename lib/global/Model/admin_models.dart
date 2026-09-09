@@ -93,6 +93,8 @@ class UserDetailRecord {
   final String? photoUrl;
   final String? krishiCardDocUrl;
   final String adminNotes;
+  final VerificationStatus nidStatus;
+  final String nidRejectionNote;
 
   UserDetailRecord({
     required this.id,
@@ -113,6 +115,8 @@ class UserDetailRecord {
     this.photoUrl,
     this.krishiCardDocUrl,
     this.adminNotes = '',
+    this.nidStatus = VerificationStatus.pending,
+    this.nidRejectionNote = '',
   });
 }
 
@@ -130,6 +134,8 @@ class FarmerVerificationRecord {
   final String? photoUrl;
   final String? krishiCardDocUrl;
   final String adminNotes;
+  final VerificationStatus nidStatus;
+  final String nidRejectionNote;
 
   FarmerVerificationRecord({
     required this.id,
@@ -145,6 +151,8 @@ class FarmerVerificationRecord {
     this.photoUrl,
     this.krishiCardDocUrl,
     this.adminNotes = '',
+    this.nidStatus = VerificationStatus.pending,
+    this.nidRejectionNote = '',
   });
 }
 
@@ -165,6 +173,8 @@ class BuyerVerificationRecord {
   final String? businessLicenseNo;
   final String? photoUrl;
   final String adminNotes;
+  final VerificationStatus nidStatus;
+  final String nidRejectionNote;
 
   BuyerVerificationRecord({
     required this.id,
@@ -183,6 +193,8 @@ class BuyerVerificationRecord {
     this.businessLicenseNo,
     this.photoUrl,
     this.adminNotes = '',
+    this.nidStatus = VerificationStatus.pending,
+    this.nidRejectionNote = '',
   });
 }
 

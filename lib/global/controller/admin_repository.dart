@@ -79,6 +79,16 @@ class AdminRepository extends ChangeNotifier {
             status = VerificationStatus.suspended;
           }
 
+          final adminNote = (u['admin_note'] ?? '').toString();
+          final nidRejectionNote = (u['nid_rejection_note'] ?? '').toString();
+          final rawNidStatus = (u['nid_status'] ?? '').toString().toLowerCase();
+          VerificationStatus nidStatus = VerificationStatus.pending;
+          if (rawNidStatus == 'verified') {
+            nidStatus = VerificationStatus.verified;
+          } else if (rawNidStatus == 'rejected') {
+            nidStatus = VerificationStatus.rejected;
+          }
+
           final nidFront = AdminApiService.formatMediaUrl(u['nid_front_url']);
           final nidBack = AdminApiService.formatMediaUrl(u['nid_back_url']);
           final photo = AdminApiService.formatMediaUrl(u['photo_url']);
@@ -97,6 +107,9 @@ class AdminRepository extends ChangeNotifier {
               nidBackUrl: nidBack,
               photoUrl: photo,
               krishiCardDocUrl: AdminApiService.formatMediaUrl(u['krishi_card_doc_url']),
+              adminNotes: adminNote,
+              nidStatus: nidStatus,
+              nidRejectionNote: nidRejectionNote,
             ));
           } else {
             loadedBuyers.add(BuyerVerificationRecord(
@@ -115,6 +128,9 @@ class AdminRepository extends ChangeNotifier {
               tradeLicenseUrl: AdminApiService.formatMediaUrl(u['trade_license_url']),
               businessLicenseNo: u['business_type'],
               photoUrl: photo,
+              adminNotes: adminNote,
+              nidStatus: nidStatus,
+              nidRejectionNote: nidRejectionNote,
             ));
           }
         }
@@ -260,6 +276,8 @@ class AdminRepository extends ChangeNotifier {
       photoUrl: farmer.photoUrl,
       krishiCardDocUrl: farmer.krishiCardDocUrl,
       adminNotes: farmer.adminNotes,
+      nidStatus: farmer.nidStatus,
+      nidRejectionNote: farmer.nidRejectionNote,
     );
     notifyListeners();
   }
@@ -282,6 +300,8 @@ class AdminRepository extends ChangeNotifier {
       tradeLicenseUrl: buyer.tradeLicenseUrl,
       photoUrl: buyer.photoUrl,
       adminNotes: buyer.adminNotes,
+      nidStatus: buyer.nidStatus,
+      nidRejectionNote: buyer.nidRejectionNote,
     );
     notifyListeners();
   }
@@ -317,6 +337,8 @@ class AdminRepository extends ChangeNotifier {
         photoUrl: activeUserForDetail!.photoUrl,
         krishiCardDocUrl: activeUserForDetail!.krishiCardDocUrl,
         adminNotes: adminNote,
+        nidStatus: activeUserForDetail!.nidStatus,
+        nidRejectionNote: activeUserForDetail!.nidRejectionNote,
       );
     }
 
@@ -336,6 +358,8 @@ class AdminRepository extends ChangeNotifier {
         photoUrl: _farmers[fIdx].photoUrl,
         krishiCardDocUrl: _farmers[fIdx].krishiCardDocUrl,
         adminNotes: adminNote,
+        nidStatus: _farmers[fIdx].nidStatus,
+        nidRejectionNote: _farmers[fIdx].nidRejectionNote,
       );
     }
 
@@ -358,6 +382,8 @@ class AdminRepository extends ChangeNotifier {
         businessLicenseNo: _buyers[bIdx].businessLicenseNo,
         photoUrl: _buyers[bIdx].photoUrl,
         adminNotes: adminNote,
+        nidStatus: _buyers[bIdx].nidStatus,
+        nidRejectionNote: _buyers[bIdx].nidRejectionNote,
       );
     }
 
@@ -366,10 +392,104 @@ class AdminRepository extends ChangeNotifier {
     // Persist to backend database
     String statusStr = 'pending';
     if (status == VerificationStatus.verified) statusStr = 'verified';
+    if (status == VerificationStatus.inProgress) statusStr = 'inprogress';
     if (status == VerificationStatus.rejected) statusStr = 'rejected';
     if (status == VerificationStatus.suspended) statusStr = 'suspended';
 
-    await AdminApiService.updateUserStatus(userId, statusStr);
+    await AdminApiService.updateUserStatus(
+      userId: userId,
+      status: statusStr,
+      adminNote: adminNote,
+    );
+  }
+
+  Future<void> updateNidStatus({
+    required String userId,
+    required VerificationStatus nidStatus,
+    required String rejectionReason,
+  }) async {
+    String nidStatusStr = 'pending';
+    if (nidStatus == VerificationStatus.verified) nidStatusStr = 'verified';
+    if (nidStatus == VerificationStatus.rejected) nidStatusStr = 'rejected';
+
+    if (activeUserForDetail?.id == userId) {
+      activeUserForDetail = UserDetailRecord(
+        id: activeUserForDetail!.id,
+        name: activeUserForDetail!.name,
+        phone: activeUserForDetail!.phone,
+        email: activeUserForDetail!.email,
+        nid: activeUserForDetail!.nid,
+        location: activeUserForDetail!.location,
+        role: activeUserForDetail!.role,
+        status: activeUserForDetail!.status,
+        farmerType: activeUserForDetail!.farmerType,
+        storeName: activeUserForDetail!.storeName,
+        tradeLicenseNo: activeUserForDetail!.tradeLicenseNo,
+        businessLicenseNo: activeUserForDetail!.businessLicenseNo,
+        nidFrontUrl: activeUserForDetail!.nidFrontUrl,
+        nidBackUrl: activeUserForDetail!.nidBackUrl,
+        tradeLicenseUrl: activeUserForDetail!.tradeLicenseUrl,
+        photoUrl: activeUserForDetail!.photoUrl,
+        krishiCardDocUrl: activeUserForDetail!.krishiCardDocUrl,
+        adminNotes: rejectionReason.isNotEmpty ? rejectionReason : activeUserForDetail!.adminNotes,
+        nidStatus: nidStatus,
+        nidRejectionNote: rejectionReason,
+      );
+    }
+
+    final fIdx = _farmers.indexWhere((f) => f.id == userId);
+    if (fIdx != -1) {
+      _farmers[fIdx] = FarmerVerificationRecord(
+        id: _farmers[fIdx].id,
+        name: _farmers[fIdx].name,
+        phone: _farmers[fIdx].phone,
+        nid: _farmers[fIdx].nid,
+        location: _farmers[fIdx].location,
+        farmerType: _farmers[fIdx].farmerType,
+        email: _farmers[fIdx].email,
+        status: _farmers[fIdx].status,
+        nidFrontUrl: _farmers[fIdx].nidFrontUrl,
+        nidBackUrl: _farmers[fIdx].nidBackUrl,
+        photoUrl: _farmers[fIdx].photoUrl,
+        krishiCardDocUrl: _farmers[fIdx].krishiCardDocUrl,
+        adminNotes: rejectionReason.isNotEmpty ? rejectionReason : _farmers[fIdx].adminNotes,
+        nidStatus: nidStatus,
+        nidRejectionNote: rejectionReason,
+      );
+    }
+
+    final bIdx = _buyers.indexWhere((b) => b.id == userId);
+    if (bIdx != -1) {
+      _buyers[bIdx] = BuyerVerificationRecord(
+        id: _buyers[bIdx].id,
+        storeName: _buyers[bIdx].storeName,
+        ownerName: _buyers[bIdx].ownerName,
+        tradeLicense: _buyers[bIdx].tradeLicense,
+        location: _buyers[bIdx].location,
+        onTimePayPercent: _buyers[bIdx].onTimePayPercent,
+        email: _buyers[bIdx].email,
+        phone: _buyers[bIdx].phone,
+        nid: _buyers[bIdx].nid,
+        status: _buyers[bIdx].status,
+        nidFrontUrl: _buyers[bIdx].nidFrontUrl,
+        nidBackUrl: _buyers[bIdx].nidBackUrl,
+        tradeLicenseUrl: _buyers[bIdx].tradeLicenseUrl,
+        businessLicenseNo: _buyers[bIdx].businessLicenseNo,
+        photoUrl: _buyers[bIdx].photoUrl,
+        adminNotes: rejectionReason.isNotEmpty ? rejectionReason : _buyers[bIdx].adminNotes,
+        nidStatus: nidStatus,
+        nidRejectionNote: rejectionReason,
+      );
+    }
+
+    notifyListeners();
+
+    await AdminApiService.updateUserStatus(
+      userId: userId,
+      nidStatus: nidStatusStr,
+      nidRejectionNote: rejectionReason,
+      adminNote: rejectionReason.isNotEmpty ? rejectionReason : null,
+    );
   }
 
   void suspendUser({required String userId, required String adminNote}) {

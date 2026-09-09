@@ -38,14 +38,27 @@ class AdminApiService {
     return [];
   }
 
-  /// Update verification status of a user (verified, rejected, pending)
-  static Future<bool> updateUserStatus(String userId, String status) async {
+  /// Update verification status of a user (verified, rejected, pending, in_progress, suspended)
+  /// and optionally NID verification status (verified, rejected, pending) and admin notes
+  static Future<bool> updateUserStatus({
+    required String userId,
+    String? status,
+    String? adminNote,
+    String? nidStatus,
+    String? nidRejectionNote,
+  }) async {
     try {
       final uri = Uri.parse('$baseUrl/users/$userId/status');
+      final Map<String, dynamic> body = {};
+      if (status != null) body['status'] = status;
+      if (adminNote != null) body['admin_note'] = adminNote;
+      if (nidStatus != null) body['nid_status'] = nidStatus;
+      if (nidRejectionNote != null) body['nid_rejection_note'] = nidRejectionNote;
+
       final response = await http.patch(
         uri,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'status': status}),
+        body: jsonEncode(body),
       ).timeout(const Duration(seconds: 8));
 
       return response.statusCode == 200;

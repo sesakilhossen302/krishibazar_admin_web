@@ -16,10 +16,22 @@ class UserDetailModal extends StatefulWidget {
 class _UserDetailModalState extends State<UserDetailModal> {
   late final TextEditingController _noteController;
 
+  final List<String> _quickNotes = [
+    'এনআইডি কার্ডের ছবি অস্পষ্ট, পরিষ্কার ছবি পুনরায় দিন',
+    'নাম ও তথ্যের সাথে এনআইডি কার্ডের অমিল রয়েছে',
+    'এনআইডি কার্ডের উভয় পাশের ছবি আপলোড করুন',
+    'প্রদত্ত ট্রেড লাইসেন্স বা কৃষি কার্ডের মেয়াদ শেষ',
+    'সকল তথ্য সঠিক রয়েছে ও ভেরিফাইড',
+  ];
+
   @override
   void initState() {
     super.initState();
-    _noteController = TextEditingController(text: widget.user.adminNotes);
+    _noteController = TextEditingController(
+      text: widget.user.nidRejectionNote.isNotEmpty
+          ? widget.user.nidRejectionNote
+          : widget.user.adminNotes,
+    );
   }
 
   @override
@@ -161,7 +173,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = context.read<AdminRepository>();
+    final repo = context.watch<AdminRepository>();
     final isBuyer = widget.user.role == UserRole.buyer;
 
     return Container(
@@ -172,8 +184,8 @@ class _UserDetailModalState extends State<UserDetailModal> {
           color: Colors.transparent,
           child: Container(
             constraints: BoxConstraints(
-              maxWidth: 720,
-              maxHeight: MediaQuery.of(context).size.height * 0.92,
+              maxWidth: 750,
+              maxHeight: MediaQuery.of(context).size.height * 0.94,
             ),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -202,17 +214,17 @@ class _UserDetailModalState extends State<UserDetailModal> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Contact & Identity Grid (Phone, Email, NID, Status)
+                          // 1. Contact & Identity Grid (Phone, Email, NID, Status)
                           _buildContactAndIdentityGrid(isBuyer),
 
                           const SizedBox(height: 16),
 
-                          // Location / Address Section (Card style with multiline wrap)
+                          // 2. Location / Address Section (Card style with multiline wrap)
                           _buildLocationSection(),
 
                           const SizedBox(height: 16),
 
-                          // Farm or Business Specifics Section
+                          // 3. Farm or Business Specifics Section
                           if (isBuyer)
                             _buildBuyerDetailsSection()
                           else
@@ -220,18 +232,23 @@ class _UserDetailModalState extends State<UserDetailModal> {
 
                           const SizedBox(height: 24),
 
-                          // Document Inspection Section
-                          _buildDocumentsSection(isBuyer),
+                          // 4. Dedicated NID Verification & Document Section
+                          _buildNidVerificationSection(repo),
+
+                          const SizedBox(height: 20),
+
+                          // 5. Additional Uploaded Documents (Krishi Card / Trade License)
+                          _buildOtherDocumentsSection(isBuyer),
 
                           const SizedBox(height: 24),
 
-                          // Admin Notes & Reason Input
-                          _buildAdminNoteField(),
+                          // 6. Admin Notes & Quick Suggestions
+                          _buildAdminNoteSection(),
 
                           const SizedBox(height: 24),
 
-                          // Verification Decision & Actions Bar
-                          _buildActionButtons(repo),
+                          // 7. Overall Account Verification Decision Bar
+                          _buildAccountActionButtons(repo),
 
                           const SizedBox(height: 12),
                         ],
@@ -532,7 +549,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
               _buildDetailTile(
                 icon: Icons.security_rounded,
                 iconColor: const Color(0xFFD97706),
-                label: 'বর্তমান অবস্থা',
+                label: 'অ্যাকাউন্ট অবস্থা',
                 value: widget.user.status.labelBn,
                 highlightColor: _getStatusColor(widget.user.status),
               ),
@@ -584,7 +601,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                   child: _buildDetailTile(
                     icon: Icons.security_rounded,
                     iconColor: const Color(0xFFD97706),
-                    label: 'বর্তমান অবস্থা',
+                    label: 'অ্যাকাউন্ট অবস্থা',
                     value: widget.user.status.labelBn,
                     highlightColor: _getStatusColor(widget.user.status),
                   ),
@@ -663,7 +680,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
     );
   }
 
-  // 2. LOCATION & ADDRESS SECTION (WRAPS PROPERLY, ZERO OVERFLOW)
+  // 2. LOCATION & ADDRESS SECTION
   Widget _buildLocationSection() {
     return Container(
       width: double.infinity,
@@ -689,17 +706,13 @@ class _UserDetailModalState extends State<UserDetailModal> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
-                  children: [
-                    Text(
-                      'এলাকা ও সম্পূর্ণ ঠিকানা',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF166534),
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'এলাকা ও সম্পূর্ণ ঠিকানা',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF166534),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 SelectableText(
@@ -855,67 +868,267 @@ class _UserDetailModalState extends State<UserDetailModal> {
     );
   }
 
-  // 5. DOCUMENTS SECTION
-  Widget _buildDocumentsSection(bool isBuyer) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.folder_shared_rounded, size: 20, color: Color(0xFF0F172A)),
-                SizedBox(width: 8),
-                Text(
-                  'সংযুক্ত নথিপত্র ও ছবি (Uploaded Documents)',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+  // 4. DEDICATED NID VERIFICATION & INSPECTION SECTION
+  Widget _buildNidVerificationSection(AdminRepository repo) {
+    final nidStatus = widget.user.nidStatus;
+    final isNidVerified = nidStatus == VerificationStatus.verified;
+    final isNidRejected = nidStatus == VerificationStatus.rejected;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isNidRejected
+            ? const Color(0xFFFEF2F2)
+            : isNidVerified
+                ? const Color(0xFFF0FDF4)
+                : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isNidRejected
+              ? const Color(0xFFFCA5A5)
+              : isNidVerified
+                  ? const Color(0xFF86EFAC)
+                  : const Color(0xFFCBD5E1),
+          width: 1.5,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // NID Header and Live Status Chip
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: isNidRejected
+                      ? const Color(0xFFEF4444)
+                      : isNidVerified
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF0284C7),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.badge_rounded, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'এনআইডি কার্ড যাচাই ও সিদ্ধান্ত (NID Verification)',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      'নাম, ছবির মিল ও তথ্যের সত্যতা যাচাই করে সিদ্ধান্ত নিন',
+                      style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                    ),
+                  ],
+                ),
+              ),
+              // NID Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isNidVerified
+                      ? const Color(0xFFDCFCE7)
+                      : isNidRejected
+                          ? const Color(0xFFFEE2E2)
+                          : const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isNidVerified
+                        ? const Color(0xFF86EFAC)
+                        : isNidRejected
+                            ? const Color(0xFFFCA5A5)
+                            : const Color(0xFFFDE68A),
                   ),
                 ),
-              ],
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
-                borderRadius: BorderRadius.circular(6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      isNidVerified
+                          ? Icons.check_circle_rounded
+                          : isNidRejected
+                              ? Icons.cancel_rounded
+                              : Icons.hourglass_empty_rounded,
+                      size: 13,
+                      color: isNidVerified
+                          ? const Color(0xFF15803D)
+                          : isNidRejected
+                              ? const Color(0xFFB91C1C)
+                              : const Color(0xFFB45309),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isNidVerified
+                          ? 'এনআইডি সঠিক ✅'
+                          : isNidRejected
+                              ? 'এনআইডি বাতিল ❌'
+                              : 'এনআইডি অপেক্ষমাণ ⏳',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isNidVerified
+                            ? const Color(0xFF15803D)
+                            : isNidRejected
+                                ? const Color(0xFFB91C1C)
+                                : const Color(0xFFB45309),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: const Text(
-                'ক্লিক করে বড় দেখুন',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
+            ],
+          ),
 
-        // Document Cards
-        Row(
-          children: [
-            Expanded(
-              child: _buildModernDocCard(
-                title: 'এনআইডি (সামনের দিক)',
-                subtitle: 'NID Card Front',
-                imgUrl: widget.user.nidFrontUrl,
-                icon: Icons.credit_card_rounded,
+          if (isNidRejected && widget.user.nidRejectionNote.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFFCA5A5)),
               ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: _buildModernDocCard(
-                title: 'এনআইডি (পেছনের দিক)',
-                subtitle: 'NID Card Back',
-                imgUrl: widget.user.nidBackUrl,
-                icon: Icons.credit_card_rounded,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFDC2626)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'পূর্ববর্তী বাতিলের কারণ: ${widget.user.nidRejectionNote}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF991B1B), fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ),
-        if (isBuyer && widget.user.tradeLicenseUrl != null && widget.user.tradeLicenseUrl!.isNotEmpty) ...[
+
           const SizedBox(height: 14),
+
+          // NID Front and Back Photos
+          Row(
+            children: [
+              Expanded(
+                child: _buildModernDocCard(
+                  title: 'এনআইডি (সামনের দিক)',
+                  subtitle: 'NID Card Front',
+                  imgUrl: widget.user.nidFrontUrl,
+                  icon: Icons.credit_card_rounded,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildModernDocCard(
+                  title: 'এনআইডি (পেছনের দিক)',
+                  subtitle: 'NID Card Back',
+                  imgUrl: widget.user.nidBackUrl,
+                  icon: Icons.credit_card_rounded,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // NID Verification Decision Buttons
+          Row(
+            children: [
+              // Approve NID Button
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    await repo.updateNidStatus(
+                      userId: widget.user.id,
+                      nidStatus: VerificationStatus.verified,
+                      rejectionReason: '',
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${widget.user.name} এর এনআইডি কার্ড অনুমোদিত ও সঠিক চিহ্নিত করা হয়েছে ✅'),
+                          backgroundColor: const Color(0xFF15803D),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  label: const Text('এনআইডি অনুমোদন করুন (NID Verified ✅)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF15803D),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+
+              // Reject NID Button
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    String reason = _noteController.text.trim();
+                    if (reason.isEmpty) {
+                      reason = 'এনআইডি কার্ডের ছবি অস্পষ্ট অথবা তথ্যের অমিল রয়েছে। অনুগ্রহ করে পুনরায় পরিষ্কার ছবি আপলোড করুন।';
+                    }
+
+                    await repo.updateNidStatus(
+                      userId: widget.user.id,
+                      nidStatus: VerificationStatus.rejected,
+                      rejectionReason: reason,
+                    );
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${widget.user.name} এর এনআইডি বাতিল করা হয়েছে। ইউজারকে পুনরায় আপলোডের নোটিশ পাঠানো হলো ❌'),
+                          backgroundColor: const Color(0xFFDC2626),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.highlight_off_rounded, size: 18),
+                  label: const Text('এনআইডি বাতিল ও পুনরায় ছবি চান (Reject ❌)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFDC2626),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 5. OTHER DOCUMENTS SECTION (Trade License / Krishi Card)
+  Widget _buildOtherDocumentsSection(bool isBuyer) {
+    if (isBuyer && widget.user.tradeLicenseUrl != null && widget.user.tradeLicenseUrl!.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'ব্যবসায়িক নথি ও ট্রেড লাইসেন্স (Trade License Document)',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 8),
           _buildModernDocCard(
             title: 'ট্রেড লাইসেন্স কপি (Trade License)',
             subtitle: 'ব্যবসায়িক সনদপত্র',
@@ -923,17 +1136,29 @@ class _UserDetailModalState extends State<UserDetailModal> {
             icon: Icons.receipt_long_rounded,
           ),
         ],
-        if (!isBuyer && widget.user.krishiCardDocUrl != null && widget.user.krishiCardDocUrl!.isNotEmpty) ...[
-          const SizedBox(height: 14),
+      );
+    }
+
+    if (!isBuyer && widget.user.krishiCardDocUrl != null && widget.user.krishiCardDocUrl!.isNotEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'কৃষি নথি ও কার্ড (Krishi Card Document)',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          ),
+          const SizedBox(height: 8),
           _buildModernDocCard(
-            title: 'কৃষি কার্ড / জমির পরচা (Farmer Document)',
-            subtitle: 'সরকারি কৃষি কার্ড বা খামার সংক্রান্ত নথি',
+            title: 'কৃষি কার্ড / খামার নথি (Krishi Document)',
+            subtitle: 'কৃষি সম্প্রসারণ অধিদপ্তর কর্তৃক প্রদত্ত কার্ড বা পরচা',
             imgUrl: widget.user.krishiCardDocUrl!,
             icon: Icons.file_present_rounded,
           ),
         ],
-      ],
-    );
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 
   Widget _buildModernDocCard({
@@ -1093,8 +1318,8 @@ class _UserDetailModalState extends State<UserDetailModal> {
     );
   }
 
-  // 6. ADMIN NOTE INPUT FIELD
-  Widget _buildAdminNoteField() {
+  // 6. ADMIN NOTE INPUT WITH QUICK PRESETS
+  Widget _buildAdminNoteSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1112,7 +1337,49 @@ class _UserDetailModalState extends State<UserDetailModal> {
             ),
           ],
         ),
+        const SizedBox(height: 4),
+        const Text(
+          'এখানে যা লিখবেন তা ব্যবহারকারী তার অ্যাপের প্রোফাইল বা লগইনে দেখতে পাবেন:',
+          style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+        ),
         const SizedBox(height: 8),
+
+        // Quick Reason Suggestion Chips
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: _quickNotes.map((note) {
+            return InkWell(
+              onTap: () {
+                setState(() {
+                  _noteController.text = note;
+                });
+              },
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.add_circle_outline_rounded, size: 12, color: Color(0xFF0284C7)),
+                    const SizedBox(width: 4),
+                    Text(
+                      note,
+                      style: const TextStyle(fontSize: 11, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+
         TextField(
           controller: _noteController,
           maxLines: 2,
@@ -1141,13 +1408,13 @@ class _UserDetailModalState extends State<UserDetailModal> {
     );
   }
 
-  // 7. ACTION BUTTONS (APPROVE, IN REVIEW, PENDING, SUSPEND, REJECT)
-  Widget _buildActionButtons(AdminRepository repo) {
+  // 7. OVERALL ACCOUNT STATUS ACTIONS (APPROVE, IN REVIEW, PENDING, SUSPEND, REJECT)
+  Widget _buildAccountActionButtons(AdminRepository repo) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'স্ট্যাটাস পরিবর্তন ও অনুমোদন সংক্রান্ত অ্যাকশন:',
+          'সামগ্রিক অ্যাকাউন্ট স্ট্যাটাস ও অনুমোদন অ্যাকশন:',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.bold,
@@ -1170,7 +1437,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${widget.user.name} এর প্রোফাইল সফলভাবে যাচাই ও অনুমোদন করা হয়েছে ✅'),
+                      content: Text('${widget.user.name} এর সম্পূর্ণ অ্যাকাউন্ট যাচাই ও অনুমোদন করা হয়েছে ✅'),
                       backgroundColor: const Color(0xFF15803D),
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -1178,7 +1445,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                 }
               },
               icon: const Icon(Icons.check_circle_rounded, size: 18),
-              label: const Text('অনুমোদন করুন (Approve ✅)'),
+              label: const Text('সম্পূর্ণ অ্যাকাউন্ট অনুমোদন (Approve ✅)'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF15803D),
                 foregroundColor: Colors.white,
@@ -1188,7 +1455,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
               ),
             ),
 
-            // In Progress (Blue)
+            // In Progress (Sky Blue)
             ElevatedButton.icon(
               onPressed: () async {
                 await repo.updateUserStatus(
@@ -1228,7 +1495,7 @@ class _UserDetailModalState extends State<UserDetailModal> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${widget.user.name} এর প্রোফাইল অপেক্ষমাণ রাখা হলো ⏳'),
+                      content: Text('${widget.user.name} এর অ্যাকাউন্ট অপেক্ষমাণ রাখা হলো ⏳'),
                       backgroundColor: const Color(0xFFD97706),
                       behavior: SnackBarBehavior.floating,
                     ),
