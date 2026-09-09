@@ -246,25 +246,58 @@ class AdminProductApprovalRecord {
   final String emoji;
   final String title;
   final String farmerName;
+  final String farmerPhone;
+  final String farmerDistrict;
+  final bool farmerVerified;
   final String location;
   final double quantity;
+  final double remainingQuantity;
   final ProductUnit unit;
+  final String unitLabel;
   final double pricePerUnit;
+  final double minPrice;
   final String qualityGrade;
+  final String category;
+  final String harvestDate;
+  final String availableDate;
+  final String description;
+  final List<String> imageUrls;
+  final String? videoUrl;
+  final String? videoNote;
   final bool isApproved;
+  final String status;
+  final String createdAt;
 
   AdminProductApprovalRecord({
     required this.id,
     required this.emoji,
     required this.title,
     required this.farmerName,
+    this.farmerPhone = '',
+    this.farmerDistrict = '',
+    this.farmerVerified = true,
     required this.location,
     required this.quantity,
+    double? remainingQuantity,
     required this.unit,
+    String? unitLabel,
     required this.pricePerUnit,
+    double? minPrice,
     required this.qualityGrade,
+    this.category = 'শাকসবজি',
+    this.harvestDate = '',
+    this.availableDate = '',
+    this.description = '',
+    this.imageUrls = const [],
+    this.videoUrl,
+    this.videoNote,
     required this.isApproved,
-  });
+    String? status,
+    this.createdAt = '',
+  })  : remainingQuantity = remainingQuantity ?? quantity,
+        unitLabel = unitLabel ?? unit.labelBn,
+        minPrice = minPrice ?? pricePerUnit,
+        status = status ?? (isApproved ? 'active' : 'pending');
 }
 
 class AdminDemandMonitoringRecord {
@@ -272,25 +305,39 @@ class AdminDemandMonitoringRecord {
   final String emoji;
   final String title;
   final String buyerStore;
+  final String buyerName;
+  final String buyerPhone;
   final String deliveryLocation;
   final double requiredQuantity;
   final ProductUnit unit;
+  final String unitLabel;
   final String budgetRange;
   final int offersCount;
   final String status;
+  final String category;
+  final String description;
+  final String deadlineDate;
+  final String createdAt;
 
   AdminDemandMonitoringRecord({
     required this.id,
     required this.emoji,
     required this.title,
     required this.buyerStore,
+    this.buyerName = '',
+    this.buyerPhone = '',
     required this.deliveryLocation,
     required this.requiredQuantity,
     required this.unit,
+    String? unitLabel,
     required this.budgetRange,
     required this.offersCount,
     required this.status,
-  });
+    this.category = 'শাকসবজি',
+    this.description = '',
+    this.deadlineDate = '',
+    this.createdAt = '',
+  }) : unitLabel = unitLabel ?? unit.labelBn;
 }
 
 class AdminOrderRecord {

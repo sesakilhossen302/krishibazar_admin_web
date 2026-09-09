@@ -22,10 +22,15 @@ class AdminRepository extends ChangeNotifier {
   List<AdminDisputeRecord> get disputes => _disputes;
 
   UserDetailRecord? activeUserForDetail;
+  AdminProductApprovalRecord? activeProductForDetail;
+  AdminDemandMonitoringRecord? activeDemandForDetail;
+
   int activeNavIndex = 0;
   String searchQuery = '';
   bool _isLoadingUsers = false;
   bool get isLoadingUsers => _isLoadingUsers;
+  bool _isLoadingProducts = false;
+  bool get isLoadingProducts => _isLoadingProducts;
 
   void setActiveNavIndex(int index) {
     activeNavIndex = index;
@@ -37,9 +42,31 @@ class AdminRepository extends ChangeNotifier {
     notifyListeners();
   }
 
+  void openProductDetail(AdminProductApprovalRecord product) {
+    activeProductForDetail = product;
+    notifyListeners();
+  }
+
+  void closeProductDetail() {
+    activeProductForDetail = null;
+    notifyListeners();
+  }
+
+  void openDemandDetail(AdminDemandMonitoringRecord demand) {
+    activeDemandForDetail = demand;
+    notifyListeners();
+  }
+
+  void closeDemandDetail() {
+    activeDemandForDetail = null;
+    notifyListeners();
+  }
+
   AdminRepository() {
     _initDemoData();
     fetchUsersFromBackend();
+    fetchProductsFromBackend();
+    fetchDemandsFromBackend();
   }
 
   Future<void> fetchUsersFromBackend() async {
@@ -173,6 +200,286 @@ class AdminRepository extends ChangeNotifier {
     }
   }
 
+  Future<void> fetchProductsFromBackend() async {
+    _isLoadingProducts = true;
+    notifyListeners();
+
+    try {
+      final data = await AdminApiService.fetchAllProducts();
+      if (data.isNotEmpty) {
+        final List<AdminProductApprovalRecord> loaded = [];
+        for (var p in data) {
+          final id = p['id']?.toString() ?? '';
+          final title = p['title']?.toString() ?? '';
+          final farmerName = p['farmer_name']?.toString() ?? 'কৃষক';
+          final location = p['location']?.toString() ?? p['farmer_district']?.toString() ?? 'বাংলাদেশ';
+          final qty = (p['quantity'] is num) ? (p['quantity'] as num).toDouble() : 0.0;
+          final remQty = (p['remaining_quantity'] is num) ? (p['remaining_quantity'] as num).toDouble() : qty;
+          final price = (p['expected_price'] is num) ? (p['expected_price'] as num).toDouble() : 0.0;
+          final minPrice = (p['min_price'] is num) ? (p['min_price'] as num).toDouble() : price;
+          final qualityGrade = p['quality_grade']?.toString() ?? 'গ্রেড A';
+          final category = p['category']?.toString() ?? 'শাকসবজি';
+          final harvestDate = p['harvest_date']?.toString() ?? '';
+          final availableDate = p['available_date']?.toString() ?? '';
+          final description = p['description']?.toString() ?? '';
+          final status = (p['status'] ?? 'active').toString();
+          final isApproved = status == 'active';
+          final farmerPhone = p['farmer_phone']?.toString() ?? '';
+          final farmerDistrict = p['farmer_district']?.toString() ?? '';
+          final farmerVerified = p['farmer_verified'] == true;
+
+          // Images
+          final List<String> imageUrls = [];
+          if (p['images'] is List) {
+            for (var img in (p['images'] as List)) {
+              if (img != null && img.toString().isNotEmpty) {
+                imageUrls.add(AdminApiService.formatMediaUrl(img.toString()));
+              }
+            }
+          }
+          if (imageUrls.isEmpty && (p['image_url'] ?? '').toString().isNotEmpty) {
+            imageUrls.add(AdminApiService.formatMediaUrl(p['image_url'].toString()));
+          }
+
+          // Video
+          String? videoUrl;
+          if ((p['video_url'] ?? '').toString().isNotEmpty) {
+            videoUrl = AdminApiService.formatMediaUrl(p['video_url'].toString());
+          }
+          final videoNote = p['video_note']?.toString();
+
+          // Emoji
+          String emoji = '🌾';
+          if (category.contains('সবজি')) {
+            emoji = '🥦';
+          } else if (category.contains('ফল')) {
+            emoji = '🍎';
+          } else if (category.contains('ধান') || category.contains('চাল')) {
+            emoji = '🌾';
+          } else if (category.contains('ডাল')) {
+            emoji = '🫘';
+          } else if (category.contains('মসলা')) {
+            emoji = '🌶️';
+          } else if (title.contains('আলু')) {
+            emoji = '🥔';
+          } else if (title.contains('টমেটো')) {
+            emoji = '🍅';
+          } else if (title.contains('পেঁয়াজ')) {
+            emoji = '🧅';
+          }
+
+          // Unit
+          final rawUnit = p['unit']?.toString() ?? 'কেজি';
+          ProductUnit unit = ProductUnit.kg;
+          if (rawUnit.contains('মন')) {
+            unit = ProductUnit.mon;
+          } else if (rawUnit.contains('টন')) {
+            unit = ProductUnit.ton;
+          }
+
+          loaded.add(AdminProductApprovalRecord(
+            id: id,
+            emoji: emoji,
+            title: title,
+            farmerName: farmerName,
+            farmerPhone: farmerPhone,
+            farmerDistrict: farmerDistrict,
+            farmerVerified: farmerVerified,
+            location: location,
+            quantity: qty,
+            remainingQuantity: remQty,
+            unit: unit,
+            unitLabel: rawUnit,
+            pricePerUnit: price,
+            minPrice: minPrice,
+            qualityGrade: qualityGrade,
+            category: category,
+            harvestDate: harvestDate,
+            availableDate: availableDate,
+            description: description,
+            imageUrls: imageUrls,
+            videoUrl: videoUrl,
+            videoNote: videoNote,
+            isApproved: isApproved,
+            status: status,
+            createdAt: p['created_at']?.toString() ?? '',
+          ));
+        }
+
+        if (loaded.isNotEmpty) {
+          _products = loaded;
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN REPO] Error fetching products: $e');
+    } finally {
+      _isLoadingProducts = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchDemandsFromBackend() async {
+    try {
+      final data = await AdminApiService.fetchAllDemands();
+      if (data.isNotEmpty) {
+        final List<AdminDemandMonitoringRecord> loaded = [];
+        for (var d in data) {
+          final id = d['id']?.toString() ?? '';
+          final title = d['product_title']?.toString() ?? '';
+          final buyerStore = d['buyer_store']?.toString() ?? d['buyer_name']?.toString() ?? 'ক্রেতা';
+          final buyerName = d['buyer_name']?.toString() ?? '';
+          final buyerPhone = d['buyer_phone']?.toString() ?? '';
+          final deliveryLocation = d['required_location']?.toString() ?? 'বাংলাদেশ';
+          final qty = (d['quantity'] is num) ? (d['quantity'] as num).toDouble() : 0.0;
+          final rawUnit = d['unit']?.toString() ?? 'কেজি';
+          ProductUnit unit = ProductUnit.kg;
+          if (rawUnit.contains('মন')) {
+            unit = ProductUnit.mon;
+          } else if (rawUnit.contains('টন')) {
+            unit = ProductUnit.ton;
+          }
+
+          final budgetMin = d['target_price_min']?.toString() ?? '';
+          final budgetMax = d['target_price_max']?.toString() ?? '';
+          final budgetRange = (budgetMin.isNotEmpty && budgetMax.isNotEmpty)
+              ? '৳$budgetMin - ৳$budgetMax / $rawUnit'
+              : (budgetMax.isNotEmpty ? '৳$budgetMax / $rawUnit' : 'আলোচনা সাপেক্ষে');
+
+          final offersCount = (d['offers_count'] is num) ? (d['offers_count'] as num).toInt() : 0;
+          final status = (d['status'] ?? 'active').toString();
+          final category = d['category']?.toString() ?? 'শাকসবজি';
+          final description = d['description']?.toString() ?? '';
+          final deadlineDate = d['deadline_date']?.toString() ?? '';
+
+          String emoji = '📦';
+          if (category.contains('সবজি')) {
+            emoji = '🥦';
+          } else if (category.contains('ফল')) {
+            emoji = '🍎';
+          } else if (title.contains('পেঁয়াজ')) {
+            emoji = '🧅';
+          } else if (title.contains('আলু')) {
+            emoji = '🥔';
+          }
+
+          loaded.add(AdminDemandMonitoringRecord(
+            id: id,
+            emoji: emoji,
+            title: title,
+            buyerStore: buyerStore,
+            buyerName: buyerName,
+            buyerPhone: buyerPhone,
+            deliveryLocation: deliveryLocation,
+            requiredQuantity: qty,
+            unit: unit,
+            unitLabel: rawUnit,
+            budgetRange: budgetRange,
+            offersCount: offersCount,
+            status: status == 'active' ? 'সক্রিয় (Active)' : status,
+            category: category,
+            description: description,
+            deadlineDate: deadlineDate,
+            createdAt: d['created_at']?.toString() ?? '',
+          ));
+        }
+
+        if (loaded.isNotEmpty) {
+          _demands = loaded;
+          notifyListeners();
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN REPO] Error fetching demands: $e');
+    }
+  }
+
+  Future<bool> approveProduct(String productId) async {
+    final idx = _products.indexWhere((p) => p.id == productId);
+    if (idx != -1) {
+      final old = _products[idx];
+      _products[idx] = AdminProductApprovalRecord(
+        id: old.id,
+        emoji: old.emoji,
+        title: old.title,
+        farmerName: old.farmerName,
+        farmerPhone: old.farmerPhone,
+        farmerDistrict: old.farmerDistrict,
+        farmerVerified: old.farmerVerified,
+        location: old.location,
+        quantity: old.quantity,
+        remainingQuantity: old.remainingQuantity,
+        unit: old.unit,
+        unitLabel: old.unitLabel,
+        pricePerUnit: old.pricePerUnit,
+        minPrice: old.minPrice,
+        qualityGrade: old.qualityGrade,
+        category: old.category,
+        harvestDate: old.harvestDate,
+        availableDate: old.availableDate,
+        description: old.description,
+        imageUrls: old.imageUrls,
+        videoUrl: old.videoUrl,
+        videoNote: old.videoNote,
+        isApproved: true,
+        status: 'active',
+        createdAt: old.createdAt,
+      );
+      if (activeProductForDetail?.id == productId) {
+        activeProductForDetail = _products[idx];
+      }
+      notifyListeners();
+    }
+    return await AdminApiService.updateProductStatus(productId: productId, status: 'active');
+  }
+
+  Future<bool> rejectProduct(String productId) async {
+    final idx = _products.indexWhere((p) => p.id == productId);
+    if (idx != -1) {
+      final old = _products[idx];
+      _products[idx] = AdminProductApprovalRecord(
+        id: old.id,
+        emoji: old.emoji,
+        title: old.title,
+        farmerName: old.farmerName,
+        farmerPhone: old.farmerPhone,
+        farmerDistrict: old.farmerDistrict,
+        farmerVerified: old.farmerVerified,
+        location: old.location,
+        quantity: old.quantity,
+        remainingQuantity: old.remainingQuantity,
+        unit: old.unit,
+        unitLabel: old.unitLabel,
+        pricePerUnit: old.pricePerUnit,
+        minPrice: old.minPrice,
+        qualityGrade: old.qualityGrade,
+        category: old.category,
+        harvestDate: old.harvestDate,
+        availableDate: old.availableDate,
+        description: old.description,
+        imageUrls: old.imageUrls,
+        videoUrl: old.videoUrl,
+        videoNote: old.videoNote,
+        isApproved: false,
+        status: 'rejected',
+        createdAt: old.createdAt,
+      );
+      if (activeProductForDetail?.id == productId) {
+        activeProductForDetail = _products[idx];
+      }
+      notifyListeners();
+    }
+    return await AdminApiService.updateProductStatus(productId: productId, status: 'rejected');
+  }
+
+  Future<bool> deleteProductListing(String productId) async {
+    _products.removeWhere((p) => p.id == productId);
+    if (activeProductForDetail?.id == productId) {
+      activeProductForDetail = null;
+    }
+    notifyListeners();
+    return await AdminApiService.deleteProduct(productId);
+  }
+
   void _initDemoData() {
     _farmers = [
       FarmerVerificationRecord(
@@ -225,24 +532,60 @@ class AdminRepository extends ChangeNotifier {
         emoji: '🥔',
         title: 'টাটকা ডায়মন্ড লাল আলু (গ্রেড A)',
         farmerName: 'মো: আব্দুল রহিম',
-        location: 'রাজশাহী',
+        farmerPhone: '01709-122333',
+        farmerDistrict: 'রাজশাহী',
+        farmerVerified: true,
+        location: 'গোদাগাড়ী, রাজশাহী',
         quantity: 5000,
+        remainingQuantity: 4200,
         unit: ProductUnit.kg,
+        unitLabel: 'কেজি',
         pricePerUnit: 28,
-        qualityGrade: 'A+',
+        minPrice: 26,
+        qualityGrade: 'A+ (প্রিমিয়াম মান)',
+        category: 'শাকসবজি',
+        harvestDate: '10-09-2026',
+        availableDate: '12-09-2026',
+        description: 'রাজশাহীর উর্বর মাটির টাটকা ডায়মন্ড লাল আলু। কোনো ধরনের রাসায়নিক বা প্রিজারভেটিভ ছাড়া প্রাকৃতিক উপায়ে উৎপাদিত। পাইকারি বাজারের জন্য উপযুক্ত গ্রেডিং করা।',
+        imageUrls: [
+          'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1508747703725-719777637510?auto=format&fit=crop&w=800&q=80',
+        ],
+        videoUrl: 'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
+        videoNote: 'আলু তোলার সময় সরাসরি ক্ষেত থেকে ধারণকৃত ভিডিও',
         isApproved: true,
+        status: 'active',
+        createdAt: '2026-09-08 14:30',
       ),
       AdminProductApprovalRecord(
         id: 'p2',
         emoji: '🍅',
         title: 'দেশি পাকা টমেটো (১০০০ কেজি)',
         farmerName: 'খলিলুর রহমান',
-        location: 'দিনাজপুর',
+        farmerPhone: '01892-120934',
+        farmerDistrict: 'দিনাজপুর',
+        farmerVerified: true,
+        location: 'বীরগঞ্জ, দিনাজপুর',
         quantity: 1000,
+        remainingQuantity: 1000,
         unit: ProductUnit.kg,
+        unitLabel: 'কেজি',
         pricePerUnit: 40,
+        minPrice: 38,
         qualityGrade: 'Grade A',
+        category: 'ফলমূল',
+        harvestDate: '15-09-2026',
+        availableDate: '16-09-2026',
+        description: 'গাছে পাকা সুস্বাদু ও রসালো দেশি টমেটো। রান্নার জন্য কিংবা সসের জন্য পারফেক্ট। কোনো কৃত্রিম কার্বাইড বা বিষমুক্ত উপায়ে চাষ করা।',
+        imageUrls: [
+          'https://images.unsplash.com/photo-1546470427-e26264be0b11?auto=format&fit=crop&w=800&q=80',
+          'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=800&q=80',
+        ],
+        videoUrl: 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
+        videoNote: 'টমেটো ক্ষেতের তাজা ভিডিও দৃশ্য',
         isApproved: false,
+        status: 'pending',
+        createdAt: '2026-09-09 10:15',
       ),
     ];
 
@@ -252,12 +595,19 @@ class AdminRepository extends ChangeNotifier {
         emoji: '🧅',
         title: 'দেশি গোল পেঁয়াজ (জরুরি প্রয়োজন)',
         buyerStore: 'মেসার্স সততা এগ্রো ট্রেডার্স',
+        buyerName: 'আলহাজ্ব শফিকুল ইসলাম',
+        buyerPhone: '01911-543210',
         deliveryLocation: 'কারওয়ান বাজার, ঢাকা',
         requiredQuantity: 3000,
         unit: ProductUnit.kg,
+        unitLabel: 'কেজি',
         budgetRange: '৳৬৫ - ৳৭২ / কেজি',
         offersCount: 3,
         status: 'সক্রিয় (Active)',
+        category: 'মসলা',
+        description: 'সরাসরি কৃষক ভাইদের কাছ থেকে শুকনো, ভালো মানের গোল দেশি পেঁয়াজ প্রয়োজন। ডেলিভারি স্পট কারওয়ান বাজার আড়ত। নগদ পেমেন্ট করা হবে।',
+        deadlineDate: '20-09-2026',
+        createdAt: '2026-09-08 11:00',
       ),
     ];
 
@@ -598,24 +948,5 @@ class AdminRepository extends ChangeNotifier {
 
   void rejectBuyer(String id) {
     updateUserStatus(userId: id, status: VerificationStatus.rejected, adminNote: 'লাইসেন্স ত্রুটি থাকায় বাতিল');
-  }
-
-  void approveProduct(String id) {
-    final index = _products.indexWhere((p) => p.id == id);
-    if (index != -1) {
-      _products[index] = AdminProductApprovalRecord(
-        id: _products[index].id,
-        emoji: _products[index].emoji,
-        title: _products[index].title,
-        farmerName: _products[index].farmerName,
-        location: _products[index].location,
-        quantity: _products[index].quantity,
-        unit: _products[index].unit,
-        pricePerUnit: _products[index].pricePerUnit,
-        qualityGrade: _products[index].qualityGrade,
-        isApproved: true,
-      );
-      notifyListeners();
-    }
   }
 }

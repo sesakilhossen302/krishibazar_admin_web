@@ -14,6 +14,8 @@ import '../../VerificationScreen/farmer_verification_screen.dart';
 import '../../VerificationScreen/product_approval_screen.dart';
 
 import '../../VerificationScreen/user_detail_modal.dart';
+import '../../VerificationScreen/product_detail_admin_modal.dart';
+import '../../VerificationScreen/demand_detail_admin_modal.dart';
 
 class AdminMainScreen extends StatefulWidget {
   const AdminMainScreen({super.key});
@@ -290,6 +292,10 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     ),
     if (repo.activeUserForDetail != null)
       UserDetailModal(user: repo.activeUserForDetail!),
+    if (repo.activeProductForDetail != null)
+      ProductDetailAdminModal(product: repo.activeProductForDetail!),
+    if (repo.activeDemandForDetail != null)
+      DemandDetailAdminModal(demand: repo.activeDemandForDetail!),
     ],
     );
   }

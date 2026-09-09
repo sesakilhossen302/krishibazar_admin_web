@@ -67,4 +67,68 @@ class AdminApiService {
       return false;
     }
   }
+
+  /// Fetch all products from backend
+  static Future<List<Map<String, dynamic>>> fetchAllProducts() async {
+    try {
+      final uri = Uri.parse('$baseUrl/products/');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - FETCH PRODUCTS]: $e');
+    }
+    return [];
+  }
+
+  /// Update product status (active, rejected, pending, sold, archived)
+  static Future<bool> updateProductStatus({
+    required String productId,
+    required String status,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/products/$productId');
+      final response = await http.patch(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'status': status}),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - UPDATE PRODUCT STATUS]: $e');
+      return false;
+    }
+  }
+
+  /// Delete or archive product from backend
+  static Future<bool> deleteProduct(String productId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/products/$productId');
+      final response = await http.delete(uri).timeout(const Duration(seconds: 8));
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - DELETE PRODUCT]: $e');
+      return false;
+    }
+  }
+
+  /// Fetch all demands from backend
+  static Future<List<Map<String, dynamic>>> fetchAllDemands() async {
+    try {
+      final uri = Uri.parse('$baseUrl/demands/');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - FETCH DEMANDS]: $e');
+    }
+    return [];
+  }
 }
