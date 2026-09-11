@@ -24,6 +24,17 @@ class AdminRepository extends ChangeNotifier {
   UserDetailRecord? activeUserForDetail;
   AdminProductApprovalRecord? activeProductForDetail;
   AdminDemandMonitoringRecord? activeDemandForDetail;
+  AdminOrderRecord? activeOrderForDetail;
+
+  void openOrderDetail(AdminOrderRecord order) {
+    activeOrderForDetail = order;
+    notifyListeners();
+  }
+
+  void closeOrderDetail() {
+    activeOrderForDetail = null;
+    notifyListeners();
+  }
 
   int activeNavIndex = 0;
   String searchQuery = '';
@@ -530,6 +541,14 @@ class AdminRepository extends ChangeNotifier {
       final data = await AdminApiService.fetchAllOrders();
       if (data.isNotEmpty) {
         _orders = data.map((json) => AdminOrderRecord.fromJson(json)).toList();
+        if (activeOrderForDetail != null) {
+          try {
+            activeOrderForDetail = _orders.firstWhere(
+              (o) => o.id == activeOrderForDetail!.id,
+              orElse: () => activeOrderForDetail!,
+            );
+          } catch (_) {}
+        }
       }
     } catch (e) {
       debugPrint('⚠️ [ADMIN REPO] Error fetching orders: $e');
@@ -537,6 +556,24 @@ class AdminRepository extends ChangeNotifier {
       _isLoadingOrders = false;
       notifyListeners();
     }
+  }
+
+  Future<bool> assignOrderInspector({
+    required String orderId,
+    required String inspectorName,
+    String? inspectorDesignation,
+    String? notes,
+  }) async {
+    final success = await AdminApiService.assignOrderInspector(
+      orderId: orderId,
+      inspectorName: inspectorName,
+      inspectorDesignation: inspectorDesignation,
+      notes: notes,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
   }
 
   Future<bool> verifyOrderQuality({
@@ -869,18 +906,7 @@ class AdminRepository extends ChangeNotifier {
 
     _demands = [];
 
-    _orders = [
-      AdminOrderRecord(
-        id: 'o1',
-        orderNumber: 'KB-1001',
-        productTitle: 'টাটকা ডায়মন্ড লাল আলু (৮০০ কেজি)',
-        farmerName: 'মো: আব্দুল রহিম',
-        buyerName: 'মেসার্স সততা এগ্রো ট্রেডার্স',
-        totalAmount: 22400,
-        orderStatus: OrderStatus.inTransit,
-        transportStatusText: 'কালেকশন হাব ➔ গন্তব্যে চলমান',
-      ),
-    ];
+    _orders = [];
 
     _disputes = [
       AdminDisputeRecord(

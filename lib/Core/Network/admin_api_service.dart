@@ -271,6 +271,35 @@ class AdminApiService {
     }
   }
 
+  /// Admin assigns inspection agent at collection hub
+  static Future<bool> assignOrderInspector({
+    required String orderId,
+    required String inspectorName,
+    String? inspectorDesignation,
+    String? notes,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/orders/$orderId/assign-inspector');
+      final Map<String, dynamic> body = {
+        'inspector_name': inspectorName,
+        if (inspectorDesignation != null && inspectorDesignation.isNotEmpty)
+          'inspector_designation': inspectorDesignation,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - ASSIGN INSPECTOR]: $e');
+      return false;
+    }
+  }
+
   /// Admin rejects produce quality with a reason and triggers refund process
   static Future<bool> rejectOrderQuality({
     required String orderId,
