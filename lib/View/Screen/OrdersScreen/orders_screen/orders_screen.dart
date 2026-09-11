@@ -21,16 +21,29 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
     // Filter logic
     final filteredOrders = allOrders.where((order) {
-      if (_selectedFilter == 'paymentConfirmed') {
-        return order.isDepositPaid && !order.isQualityVerified;
+      if (_selectedFilter == 'paymentPending') {
+        return order.paymentStatus == 'pending_verification' ||
+            order.orderStatus == OrderStatus.paymentPending;
       }
       if (_selectedFilter == 'qualityPending') {
-        return order.isDepositPaid && !order.isQualityVerified;
+        return (order.isDepositPaid || order.paymentStatus == 'confirmed') &&
+            !order.isQualityVerified &&
+            order.isQualityPassed != false &&
+            order.orderStatus != OrderStatus.qualityRejected &&
+            order.orderStatus != OrderStatus.refunded;
+      }
+      if (_selectedFilter == 'rejectedRefund') {
+        return order.isQualityPassed == false ||
+            order.orderStatus == OrderStatus.qualityRejected ||
+            order.refundStatus == 'pending' ||
+            order.orderStatus == OrderStatus.refunded;
       }
       if (_selectedFilter == 'verified') {
-        return order.isQualityVerified &&
+        return (order.isQualityVerified || order.isQualityPassed == true) &&
             order.orderStatus != OrderStatus.delivered &&
-            order.orderStatus != OrderStatus.completed;
+            order.orderStatus != OrderStatus.completed &&
+            order.orderStatus != OrderStatus.qualityRejected &&
+            order.orderStatus != OrderStatus.refunded;
       }
       if (_selectedFilter == 'inTransit') {
         return order.orderStatus == OrderStatus.inTransit ||
@@ -67,7 +80,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'কালেকশন হাবে পণ্যের গুণমান ও ওজন পরীক্ষা এবং পরিবহন নিয়ন্ত্রণ করুন (${allOrders.length} টি অর্ডার)',
+                    'পেমেন্ট ভেরিফিকেশন, এজেন্ট নিয়োগ, গুণমান পরীক্ষা ও পরিবহন কন্ট্রোল (${allOrders.length} টি অর্ডার)',
                     style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
                   ),
                 ],
@@ -103,12 +116,22 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 _buildFilterChip('সবগুলো (${allOrders.length})', 'all'),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  'যাচাই প্রয়োজন (${allOrders.where((o) => o.isDepositPaid && !o.isQualityVerified).length})',
+                  'পেমেন্ট যাচাই পেন্ডিং (${allOrders.where((o) => o.paymentStatus == 'pending_verification' || o.orderStatus == OrderStatus.paymentPending).length})',
+                  'paymentPending',
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  'মান যাচাই প্রয়োজন (${allOrders.where((o) => (o.isDepositPaid || o.paymentStatus == 'confirmed') && !o.isQualityVerified && o.isQualityPassed != false).length})',
                   'qualityPending',
                 ),
                 const SizedBox(width: 8),
                 _buildFilterChip(
-                  'হাব যাচাই সম্পন্ন (${allOrders.where((o) => o.isQualityVerified).length})',
+                  'বাতিল ও রিফান্ড (${allOrders.where((o) => o.isQualityPassed == false || o.orderStatus == OrderStatus.qualityRejected || o.refundStatus == 'pending' || o.orderStatus == OrderStatus.refunded).length})',
+                  'rejectedRefund',
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  'হাব যাচাই সম্পন্ন (${allOrders.where((o) => (o.isQualityVerified || o.isQualityPassed == true) && o.orderStatus != OrderStatus.qualityRejected).length})',
                   'verified',
                 ),
                 const SizedBox(width: 8),
@@ -193,30 +216,74 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 
   Widget _buildOrderCard(BuildContext context, AdminOrderRecord order, AdminRepository repo) {
+    final isPaymentPending = order.paymentStatus == 'pending_verification' ||
+        order.orderStatus == OrderStatus.paymentPending;
+    final isQualityRejected = order.isQualityPassed == false ||
+        order.orderStatus == OrderStatus.qualityRejected;
+    final isRefunded = order.refundStatus == 'completed' ||
+        order.orderStatus == OrderStatus.refunded;
+    final isRefundPending = order.refundStatus == 'pending' ||
+        order.paymentStatus == 'refund_pending';
+    final isPaid = order.isDepositPaid || order.paymentStatus == 'confirmed';
+
     // Badge configuration
     Color statusBg = const Color(0xFFF1F5F9);
     Color statusCol = const Color(0xFF475569);
-    switch (order.orderStatus) {
-      case OrderStatus.completed:
-      case OrderStatus.delivered:
-        statusBg = const Color(0xFFDCFCE7);
-        statusCol = const Color(0xFF166534);
-        break;
-      case OrderStatus.inTransit:
-        statusBg = const Color(0xFFE0F2FE);
-        statusCol = const Color(0xFF0369A1);
-        break;
-      case OrderStatus.collectionVerified:
-        statusBg = const Color(0xFFE0E7FF);
-        statusCol = const Color(0xFF4338CA);
-        break;
-      case OrderStatus.paymentConfirmed:
-        statusBg = const Color(0xFFFEF3C7);
-        statusCol = const Color(0xFFB45309);
-        break;
-      default:
-        statusBg = const Color(0xFFFFEDD5);
-        statusCol = const Color(0xFFEA580C);
+
+    if (isRefunded) {
+      statusBg = const Color(0xFFE0F2FE);
+      statusCol = const Color(0xFF0369A1);
+    } else if (isQualityRejected) {
+      statusBg = const Color(0xFFFEE2E2);
+      statusCol = const Color(0xFFDC2626);
+    } else if (isPaymentPending) {
+      statusBg = const Color(0xFFFEF3C7);
+      statusCol = const Color(0xFFB45309);
+    } else {
+      switch (order.orderStatus) {
+        case OrderStatus.completed:
+        case OrderStatus.delivered:
+          statusBg = const Color(0xFFDCFCE7);
+          statusCol = const Color(0xFF166534);
+          break;
+        case OrderStatus.inTransit:
+          statusBg = const Color(0xFFE0F2FE);
+          statusCol = const Color(0xFF0369A1);
+          break;
+        case OrderStatus.collectionVerified:
+          statusBg = const Color(0xFFE0E7FF);
+          statusCol = const Color(0xFF4338CA);
+          break;
+        case OrderStatus.paymentConfirmed:
+          statusBg = const Color(0xFFDCFCE7);
+          statusCol = const Color(0xFF166534);
+          break;
+        default:
+          statusBg = const Color(0xFFFFEDD5);
+          statusCol = const Color(0xFFEA580C);
+      }
+    }
+
+    String depositBadgeText = '⏳ ডিপোজিট বাকি';
+    Color depositBadgeBg = const Color(0xFFFFEDD5);
+    Color depositBadgeCol = const Color(0xFFEA580C);
+
+    if (isRefunded) {
+      depositBadgeText = '💸 রিফান্ড সম্পন্ন';
+      depositBadgeBg = const Color(0xFFDCFCE7);
+      depositBadgeCol = const Color(0xFF166534);
+    } else if (isRefundPending) {
+      depositBadgeText = '⏳ রিফান্ড অপেক্ষমাণ';
+      depositBadgeBg = const Color(0xFFFEF3C7);
+      depositBadgeCol = const Color(0xFFB45309);
+    } else if (isPaid) {
+      depositBadgeText = '💰 ডিপোজিট সংরক্ষিত';
+      depositBadgeBg = const Color(0xFFDCFCE7);
+      depositBadgeCol = const Color(0xFF166534);
+    } else if (isPaymentPending) {
+      depositBadgeText = '⏳ পেমেন্ট যাচাই পেন্ডিং';
+      depositBadgeBg = const Color(0xFFFEF3C7);
+      depositBadgeCol = const Color(0xFFB45309);
     }
 
     return Container(
@@ -224,7 +291,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isQualityRejected ? const Color(0xFFFECDD3) : const Color(0xFFE2E8F0),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -272,15 +341,15 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: order.isDepositPaid ? const Color(0xFFDCFCE7) : const Color(0xFFFFEDD5),
+                      color: depositBadgeBg,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      order.isDepositPaid ? '💰 ডিপোজিট পেইড' : '⏳ ডিপোজিট বাকি',
+                      depositBadgeText,
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: order.isDepositPaid ? const Color(0xFF166534) : const Color(0xFFEA580C),
+                        color: depositBadgeCol,
                       ),
                     ),
                   ),
@@ -325,7 +394,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'পরিমাণ: ${order.quantity.toStringAsFixed(0)} ${order.unit} • একক দর: ৳${order.pricePerUnit.toStringAsFixed(0)} • মোট মূল্য: ৳${order.totalAmount.toStringAsFixed(0)}',
+                      'পরিমাণ: ${order.quantity.toStringAsFixed(0)} ${order.unit} • একক দর: ৳${order.pricePerUnit.toStringAsFixed(0)} • মোট মূল্য: ৳${order.totalAmount.toStringAsFixed(0)} • ডিপোজিট: ৳${order.depositRequired.toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -359,62 +428,146 @@ class _OrdersScreenState extends State<OrdersScreen> {
           // Quality Verification & Transport Status Grid
           LayoutBuilder(builder: (context, constraints) {
             final isWide = constraints.maxWidth >= 700;
-            final verificationWidget = Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: order.isQualityVerified ? const Color(0xFFF0FDF4) : const Color(0xFFFFFBEB),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: order.isQualityVerified ? const Color(0xFFBBF7D0) : const Color(0xFFFDE68A),
+
+            // Verification or Rejection widget
+            Widget verificationWidget;
+            if (isQualityRejected || isRefunded) {
+              verificationWidget = Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF1F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFECDD3)),
                 ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        '⚖️ ওজন ও গুণমান যাচাই',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: order.isQualityVerified ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
-                          borderRadius: BorderRadius.circular(6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '❌ গুণমান পরীক্ষায় পণ্য বাতিল',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF991B1B)),
                         ),
-                        child: Text(
-                          order.isQualityVerified ? 'যাচাই সম্পন্ন ✅' : 'যাচাই বাকি 🧪',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: order.isQualityVerified ? const Color(0xFF166534) : const Color(0xFFB45309),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE2E2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text(
+                            'বাতিলকৃত ❌',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFDC2626)),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'কারণ: ${order.rejectionReason.isNotEmpty ? order.rejectionReason : "কালেকশন হাবে পণ্য নির্দিষ্ট মানদণ্ড পূরণ করেনি।"}',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF991B1B)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isRefunded
+                          ? '✅ ২০% রিফান্ড (৳${(order.refundAmount > 0 ? order.refundAmount : order.depositRequired).toStringAsFixed(0)}) ক্রেতাকে ফেরত দেওয়া সম্পন্ন।'
+                          : '⏳ ক্রেতার ২০% রিফান্ড (৳${order.depositRequired.toStringAsFixed(0)}) অপেক্ষমাণ। নিচে রিফান্ড প্রদান বাটনে চাপুন।',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: isRefunded ? const Color(0xFF166534) : const Color(0xFFB45309),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            } else {
+              verificationWidget = Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: (order.isQualityVerified || order.isQualityPassed == true)
+                      ? const Color(0xFFF0FDF4)
+                      : const Color(0xFFFFFBEB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: (order.isQualityVerified || order.isQualityPassed == true)
+                        ? const Color(0xFFBBF7D0)
+                        : const Color(0xFFFDE68A),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          '⚖️ ওজন ও গুণমান যাচাই',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: (order.isQualityVerified || order.isQualityPassed == true)
+                                ? const Color(0xFFDCFCE7)
+                                : const Color(0xFFFEF3C7),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            (order.isQualityVerified || order.isQualityPassed == true)
+                                ? 'যাচাই সম্পন্ন ✅'
+                                : 'যাচাই বাকি 🧪',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: (order.isQualityVerified || order.isQualityPassed == true)
+                                  ? const Color(0xFF166534)
+                                  : const Color(0xFFB45309),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    if (order.isQualityVerified || order.isQualityPassed == true) ...[
+                      Text(
+                        'প্রকৃত মাপা ওজন: ${order.actualWeight?.toStringAsFixed(0) ?? order.quantity.toStringAsFixed(0)} ${order.unit}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF166534)),
+                      ),
+                      Text(
+                        'গ্রেড: ${order.qualityGrade} • পরীক্ষক: ${order.inspectorName.isNotEmpty ? order.inspectorName : order.verifiedBy}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                      ),
+                      Text(
+                        'মন্তব্য: "${order.verificationNotes}"',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                      ),
+                    ] else ...[
+                      if (order.inspectorName.isNotEmpty) ...[
+                        Text(
+                          'নিযুক্ত এজেন্ট: ${order.inspectorName} (${order.inspectorDesignation})',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                        ),
+                        const SizedBox(height: 2),
+                      ],
+                      Text(
+                        isPaid
+                            ? 'কালেকশন হাবে পণ্য আসার পর গুণমান ও ওজন পরীক্ষা সম্পন্ন করুন।'
+                            : (isPaymentPending
+                                ? 'দোকানদার ২০% ডিপোজিট জমা দিয়েছেন। টাকা চেক করে এজেন্ট নিয়োগ করুন।'
+                                : 'ক্রেতার ২০% ডিপোজিট জমার অপেক্ষায় রয়েছে।'),
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF92400E)),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 6),
-                  if (order.isQualityVerified) ...[
-                    Text('প্রকৃত মাপা ওজন: ${order.actualWeight?.toStringAsFixed(0) ?? order.quantity.toStringAsFixed(0)} ${order.unit}',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF166534))),
-                    Text('গ্রেড: ${order.qualityGrade} • ইন্সপেক্টর: ${order.verifiedBy}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
-                    Text('মন্তব্য: "${order.verificationNotes}"',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontStyle: FontStyle.italic)),
-                  ] else ...[
-                    const Text('কালেকশন হাবে পণ্য আসলে ওজন ও কোয়ালিটি টেস্ট সম্পন্ন করুন।',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF92400E))),
                   ],
-                ],
-              ),
-            );
+                ),
+              );
+            }
 
             final transportWidget = Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: isQualityRejected ? const Color(0xFFF1F5F9) : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
@@ -431,27 +584,35 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
+                          color: isQualityRejected ? const Color(0xFFFEE2E2) : const Color(0xFFE0F2FE),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          order.transportStatusText,
-                          style: const TextStyle(
+                          isQualityRejected ? 'পরিবহন স্থগিত' : order.transportStatusText,
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF0369A1),
+                            color: isQualityRejected ? const Color(0xFFDC2626) : const Color(0xFF0369A1),
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text('ড্রাইভার: ${order.driverName} (${order.driverPhone})',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                  Text('গাড়ির নম্বর: ${order.vehicleNumber}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
-                  Text('গন্তব্য: ${order.deliveryLocation}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  if (isQualityRejected) ...[
+                    const Text('পণ্য মান পরীক্ষায় উত্তীর্ণ না হওয়ায় পরিবহন কার্যক্রম স্থগিত রাখা হয়েছে।',
+                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  ] else ...[
+                    if (order.transportAgency.isNotEmpty)
+                      Text('সংস্থা: ${order.transportAgency}',
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.bold)),
+                    Text('ড্রাইভার: ${order.driverName} (${order.driverPhone})',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+                    Text('গাড়ির নম্বর: ${order.vehicleNumber}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                    Text('গন্তব্য: ${order.deliveryLocation}',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                  ],
                 ],
               ),
             );
@@ -482,32 +643,64 @@ class _OrdersScreenState extends State<OrdersScreen> {
             spacing: 10,
             runSpacing: 8,
             children: [
-              // 1. Verify Quality Button
-              ElevatedButton.icon(
-                onPressed: () => _openQualityVerificationDialog(context, order, repo),
-                icon: const Icon(Icons.fact_check_outlined, size: 16),
-                label: Text(order.isQualityVerified ? 'গুণমান পুনঃপরীক্ষা ⚖️' : 'ওজন ও গুণমান পরীক্ষা 🧪'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: order.isQualityVerified ? const Color(0xFF0F766E) : const Color(0xFFD97706),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              // 1. Confirm Payment & Assign Agent Button (When payment_status == 'pending_verification')
+              if (isPaymentPending)
+                ElevatedButton.icon(
+                  onPressed: () => _openConfirmPaymentDialog(context, order, repo),
+                  icon: const Icon(Icons.verified_user, size: 16),
+                  label: const Text('পেমেন্ট নিশ্চিত ও এজেন্ট নিয়োগ 💰'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF166534),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
-              ),
 
-              // 2. Transport & Driver Update
-              OutlinedButton.icon(
-                onPressed: () => _openTransportUpdateDialog(context, order, repo),
-                icon: const Icon(Icons.local_shipping_outlined, size: 16, color: Color(0xFF0284C7)),
-                label: const Text('পরিবহন ও ড্রাইভার আপডেট 🚚', style: TextStyle(color: Color(0xFF0284C7))),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  side: const BorderSide(color: Color(0xFF0284C7)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              // 2. Verify Quality / Rejection Dialog Button (When paid & not yet rejected/refunded)
+              if (!isQualityRejected && !isRefunded && (isPaid || order.orderStatus == OrderStatus.paymentConfirmed))
+                ElevatedButton.icon(
+                  onPressed: () => _openQualityVerificationDialog(context, order, repo),
+                  icon: const Icon(Icons.fact_check_outlined, size: 16),
+                  label: Text(
+                    order.isQualityVerified ? 'গুণমান পুনঃপরীক্ষা ⚖️' : 'ওজন ও গুণমান পরীক্ষা 🧪',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: order.isQualityVerified ? const Color(0xFF0F766E) : const Color(0xFFD97706),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
                 ),
-              ),
 
-              // 3. Mark in-transit / delivered quick status
+              // 3. Process Refund Button (When quality rejected and refund not completed)
+              if ((isQualityRejected || isRefundPending) && !isRefunded)
+                ElevatedButton.icon(
+                  onPressed: () => _openRefundDialog(context, order, repo),
+                  icon: const Icon(Icons.monetization_on_outlined, size: 16),
+                  label: const Text('২০% রিফান্ড প্রদান করুন 💸'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+
+              // 4. Transport & Driver Update (Only if not rejected)
+              if (!isQualityRejected && !isRefunded)
+                OutlinedButton.icon(
+                  onPressed: () => _openTransportUpdateDialog(context, order, repo),
+                  icon: const Icon(Icons.local_shipping_outlined, size: 16, color: Color(0xFF0284C7)),
+                  label: const Text('পরিবহন ও ড্রাইভার আপডেট 🚚', style: TextStyle(color: Color(0xFF0284C7))),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    side: const BorderSide(color: Color(0xFF0284C7)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+
+              // 5. Mark Quick Status Dropdown
               PopupMenuButton<String>(
                 onSelected: (newStatus) async {
                   final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -522,11 +715,14 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'paymentConfirmed', child: Text('পেমেন্ট কনফার্মড')),
-                  const PopupMenuItem(value: 'collectionVerified', child: Text('হাব যাচাই সম্পন্ন')),
-                  const PopupMenuItem(value: 'inTransit', child: Text('ইন ট্রানজিট (পথে আছে)')),
+                  const PopupMenuItem(value: 'paymentPending', child: Text('পেমেন্ট যাচাই পেন্ডিং ⏳')),
+                  const PopupMenuItem(value: 'paymentConfirmed', child: Text('পেমেন্ট কনফার্মড 🔬')),
+                  const PopupMenuItem(value: 'collectionVerified', child: Text('হাব যাচাই সম্পন্ন ⚖️')),
+                  const PopupMenuItem(value: 'qualityRejected', child: Text('পণ্য মানসম্মত নয় (বাতিল) ❌')),
+                  const PopupMenuItem(value: 'inTransit', child: Text('ইন ট্রানজিট (পথে আছে) 🚚')),
                   const PopupMenuItem(value: 'delivered', child: Text('ডেলিভারি সম্পন্ন 🎉')),
                   const PopupMenuItem(value: 'completed', child: Text('অর্ডার সমাপ্ত (Completed)')),
+                  const PopupMenuItem(value: 'refunded', child: Text('রিফান্ড সম্পন্ন 💰')),
                   const PopupMenuItem(value: 'cancelled', child: Text('অর্ডার বাতিল')),
                 ],
                 child: Container(
@@ -557,18 +753,159 @@ class _OrdersScreenState extends State<OrdersScreen> {
     );
   }
 
-  // Quality Verification Dialog
+  // Confirm Payment & Assign Inspection Agent Dialog
+  void _openConfirmPaymentDialog(BuildContext context, AdminOrderRecord order, AdminRepository repo) {
+    final inspectorNameController = TextEditingController(
+      text: order.inspectorName.isNotEmpty ? order.inspectorName : 'সেলিম রেজা',
+    );
+    final inspectorDesignationController = TextEditingController(
+      text: order.inspectorDesignation.isNotEmpty ? order.inspectorDesignation : 'সিনিয়র গুণমান পরিদর্শক (নাটোর হাব)',
+    );
+    final notesController = TextEditingController(
+      text: 'দোকানদারের ২০% সিকিউরিটি ডিপোজিট বিকাশ একাউন্টে সফলভাবে যাচাইকৃত।',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.verified_user, color: Color(0xFF166534)),
+            SizedBox(width: 8),
+            Text('পেমেন্ট নিশ্চিত ও এজেন্ট নিয়োগ', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCFCE7),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF86EFAC)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'অর্ডার #${order.orderNumber} • ${order.productTitle}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'প্রয়োজনীয় ২০% ডিপোজিট: ৳${order.depositRequired.toStringAsFixed(0)} • ক্রেতা: ${order.buyerName} (${order.buyerPhone})',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF14532D)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                const Text('নিযুক্ত মান যাচাইকারী এজেন্টের নাম:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: inspectorNameController,
+                  decoration: InputDecoration(
+                    hintText: 'যেমন: সেলিম রেজা',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                const Text('এজেন্টের পদবী ও কালেকশন হাব:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: inspectorDesignationController,
+                  decoration: InputDecoration(
+                    hintText: 'যেমন: কোয়ালিটি কন্ট্রোলার (বগুড়া কালেকশন সেন্টার)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                const Text('পেমেন্ট ভেরিফিকেশন নোট:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: notesController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('বাতিল'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              Navigator.pop(dialogCtx);
+
+              final success = await repo.confirmOrderPayment(
+                orderId: order.id,
+                inspectorName: inspectorNameController.text.trim(),
+                inspectorDesignation: inspectorDesignationController.text.trim(),
+                notes: notesController.text.trim(),
+              );
+
+              if (context.mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '✅ পেমেন্ট নিশ্চিত ও ইন্সপেকশন এজেন্ট সফলভাবে নিয়োগ করা হয়েছে!'
+                          : '❌ পেমেন্ট কনফার্মেশন ব্যর্থ হয়েছে',
+                    ),
+                    backgroundColor: success ? const Color(0xFF166534) : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF166534),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('পেমেন্ট নিশ্চিত ও এজেন্ট নিয়োগ করুন'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Quality Verification / Rejection Dialog
   void _openQualityVerificationDialog(BuildContext context, AdminOrderRecord order, AdminRepository repo) {
     final weightController = TextEditingController(
       text: (order.actualWeight ?? order.quantity).toStringAsFixed(0),
     );
     final inspectorController = TextEditingController(
-      text: order.verifiedBy.isNotEmpty ? order.verifiedBy : 'সেলিম রেজা (কালেকশন হাব ইনস্পেক্টর)',
+      text: order.inspectorName.isNotEmpty
+          ? order.inspectorName
+          : (order.verifiedBy.isNotEmpty ? order.verifiedBy : 'সেলিম রেজা (কালেকশন হাব ইনস্পেক্টর)'),
     );
     final notesController = TextEditingController(
       text: order.verificationNotes.isNotEmpty ? order.verificationNotes : 'পণ্য ফ্রেশ ও সম্পূর্ণ মানসম্মত',
     );
+    final rejectionReasonController = TextEditingController(
+      text: 'কালেকশন হাবে পণ্যের গুণমান ও সতেজতা কাঙ্ক্ষিত মানদণ্ডে উত্তীর্ণ হয়নি।',
+    );
     String selectedGrade = order.qualityGrade.isNotEmpty ? order.qualityGrade : 'গ্রেড A (প্রিমিয়াম মান)';
+    bool isRejectMode = false;
 
     showDialog(
       context: context,
@@ -576,10 +913,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
         builder: (context, setDialogState) => AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Row(
-            children: const [
-              Icon(Icons.fact_check, color: Color(0xFF166534)),
-              SizedBox(width: 8),
-              Text('পণ্যের ওজন ও গুণমান যাচাই (Hub Test)', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            children: [
+              Icon(
+                isRejectMode ? Icons.cancel_outlined : Icons.fact_check,
+                color: isRejectMode ? Colors.red : const Color(0xFF166534),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isRejectMode ? 'পণ্য গুণমান বাতিল ও প্রত্যাখ্যান' : 'পণ্যের ওজন ও গুণমান যাচাই (Hub Test)',
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           content: SizedBox(
@@ -598,66 +941,137 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     'চুক্তিকৃত পরিমাণ: ${order.quantity.toStringAsFixed(0)} ${order.unit}',
                     style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Mode Toggle
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => setDialogState(() => isRejectMode = false),
+                          icon: const Icon(Icons.check_circle_outline, size: 16),
+                          label: const Text('পণ্য মানসম্মত (Approve)'),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: !isRejectMode ? const Color(0xFFDCFCE7) : Colors.transparent,
+                            foregroundColor: !isRejectMode ? const Color(0xFF166534) : const Color(0xFF64748B),
+                            side: BorderSide(color: !isRejectMode ? const Color(0xFF166534) : const Color(0xFFCBD5E1)),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => setDialogState(() => isRejectMode = true),
+                          icon: const Icon(Icons.cancel_outlined, size: 16),
+                          label: const Text('মানসম্মত নয় (Reject)'),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: isRejectMode ? const Color(0xFFFEE2E2) : Colors.transparent,
+                            foregroundColor: isRejectMode ? const Color(0xFFDC2626) : const Color(0xFF64748B),
+                            side: BorderSide(color: isRejectMode ? const Color(0xFFDC2626) : const Color(0xFFCBD5E1)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                   const Divider(height: 24),
 
-                  // Actual Weight Field
-                  const Text('প্রকৃত মাপা ওজন:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: weightController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      hintText: 'যেমন: ${order.quantity}',
-                      suffixText: order.unit,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  if (!isRejectMode) ...[
+                    // Actual Weight Field
+                    const Text('প্রকৃত মাপা ওজন:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: weightController,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        hintText: 'যেমন: ${order.quantity}',
+                        suffixText: order.unit,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  // Quality Grade Dropdown
-                  const Text('যাচাইকৃত পণ্যের গ্রেড:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<String>(
-                    initialValue: selectedGrade,
-                    items: const [
-                      DropdownMenuItem(value: 'গ্রেড A (প্রিমিয়াম মান)', child: Text('গ্রেড A (প্রিমিয়াম মান)')),
-                      DropdownMenuItem(value: 'গ্রেড B (সাধারণ মান)', child: Text('গ্রেড B (সাধারণ মান)')),
-                      DropdownMenuItem(value: 'জৈব / অর্গানিক', child: Text('জৈব / অর্গানিক')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setDialogState(() => selectedGrade = val);
-                    },
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    // Quality Grade Dropdown
+                    const Text('যাচাইকৃত পণ্যের গ্রেড:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String>(
+                      initialValue: selectedGrade,
+                      items: const [
+                        DropdownMenuItem(value: 'গ্রেড A (প্রিমিয়াম মান)', child: Text('গ্রেড A (প্রিমিয়াম মান)')),
+                        DropdownMenuItem(value: 'গ্রেড B (সাধারণ মান)', child: Text('গ্রেড B (সাধারণ মান)')),
+                        DropdownMenuItem(value: 'জৈব / অর্গানিক', child: Text('জৈব / অর্গানিক')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setDialogState(() => selectedGrade = val);
+                      },
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  // Inspector Name Field
-                  const Text('যাচাইকারী ইন্সপেক্টর:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: inspectorController,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    // Inspector Name Field
+                    const Text('যাচাইকারী ইন্সপেক্টর:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: inspectorController,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
+                    const SizedBox(height: 14),
 
-                  // Notes Field
-                  const Text('ইন্সপেকশন নোট / মন্তব্য:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: notesController,
-                    maxLines: 2,
-                    decoration: InputDecoration(
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      contentPadding: const EdgeInsets.all(12),
+                    // Notes Field
+                    const Text('ইন্সপেকশন নোট / মন্তব্য:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: notesController,
+                      maxLines: 2,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    // Rejection Reason
+                    const Text(
+                      'পণ্য বাতিল করার কারণ (দোকানদার ও কৃষক অ্যাপে দেখবেন):',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF991B1B)),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: rejectionReasonController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'যেমন: পণ্য কালেকশন হাবে নির্দিষ্ট মানের উপযুক্ত পাওয়া যায়নি। পচা ও পোকা আক্রান্ত ছিল।',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                        contentPadding: const EdgeInsets.all(12),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFFECDD3)),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.info_outline, color: Color(0xFFDC2626), size: 18),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'পণ্য বাতিল করলে অর্ডারটি স্থগিত হবে এবং দোকানদারকে অন্য পণ্য খোঁজার পরামর্শ দেওয়া হবে। দোকানদারের ২০% ডিপোজিট রিফান্ড তালিকায় চলে যাবে।',
+                              style: TextStyle(fontSize: 11.5, color: Color(0xFF991B1B)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -667,43 +1081,202 @@ class _OrdersScreenState extends State<OrdersScreen> {
               onPressed: () => Navigator.pop(dialogCtx),
               child: const Text('বাতিল'),
             ),
-            ElevatedButton(
-              onPressed: () async {
-                final double actWeight = double.tryParse(weightController.text.trim()) ?? order.quantity;
-                final scaffoldMessenger = ScaffoldMessenger.of(context);
-                Navigator.pop(dialogCtx);
+            if (!isRejectMode)
+              ElevatedButton(
+                onPressed: () async {
+                  final double actWeight = double.tryParse(weightController.text.trim()) ?? order.quantity;
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(dialogCtx);
 
-                final success = await repo.verifyOrderQuality(
-                  orderId: order.id,
-                  actualWeight: actWeight,
-                  qualityGrade: selectedGrade,
-                  verifiedBy: inspectorController.text.trim(),
-                  verificationNotes: notesController.text.trim(),
-                );
-
-                if (context.mounted) {
-                  scaffoldMessenger.showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        success
-                            ? '✅ মান ও ওজন পরীক্ষা সম্পন্ন! স্ট্যাটাস "হাব যাচাই সম্পন্ন" হয়েছে।'
-                            : '❌ আপডেট ব্যর্থ হয়েছে',
-                      ),
-                      backgroundColor: success ? const Color(0xFF166534) : Colors.red,
-                    ),
+                  final success = await repo.verifyOrderQuality(
+                    orderId: order.id,
+                    actualWeight: actWeight,
+                    qualityGrade: selectedGrade,
+                    verifiedBy: inspectorController.text.trim(),
+                    verificationNotes: notesController.text.trim(),
                   );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF166534),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+
+                  if (context.mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? '✅ মান ও ওজন পরীক্ষা সম্পন্ন! স্ট্যাটাস "হাব যাচাই সম্পন্ন" হয়েছে।'
+                              : '❌ আপডেট ব্যর্থ হয়েছে',
+                        ),
+                        backgroundColor: success ? const Color(0xFF166534) : Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF166534),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('যাচাই সম্পন্ন ও নিশ্চিত করুন'),
+              )
+            else
+              ElevatedButton(
+                onPressed: () async {
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  Navigator.pop(dialogCtx);
+
+                  final success = await repo.rejectOrderQuality(
+                    orderId: order.id,
+                    rejectionReason: rejectionReasonController.text.trim(),
+                  );
+
+                  if (context.mounted) {
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          success
+                              ? '⚠️ পণ্য মানসম্মত না হওয়ায় বাতিল ও রিফান্ড পেন্ডিং করা হয়েছে।'
+                              : '❌ আপডেট ব্যর্থ হয়েছে',
+                        ),
+                        backgroundColor: success ? const Color(0xFFDC2626) : Colors.red,
+                      ),
+                    );
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDC2626),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: const Text('পণ্য বাতিল ও রিফান্ডে পাঠান ❌'),
               ),
-              child: const Text('যাচাই সম্পন্ন ও নিশ্চিত করুন'),
-            ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Process Refund Dialog
+  void _openRefundDialog(BuildContext context, AdminOrderRecord order, AdminRepository repo) {
+    final refundAmountController = TextEditingController(
+      text: order.depositRequired.toStringAsFixed(0),
+    );
+    final refundNotesController = TextEditingController(
+      text: 'দোকানদারের বিকাশ নম্বরে ২০% অগ্রিম ডিপোজিট সফলভাবে ফেরত দেওয়া হয়েছে।',
+    );
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.monetization_on, color: Color(0xFF0284C7)),
+            SizedBox(width: 8),
+            Text('২০% সিকিউরিটি ডিপোজিট রিফান্ড', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFBAE6FD)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'অর্ডার #${order.orderNumber} • ${order.productTitle}',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'দোকানদার: ${order.buyerName} (${order.buyerPhone})',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF0C4A6E)),
+                      ),
+                      Text(
+                        'মোট চুক্তি মূল্য: ৳${order.totalAmount.toStringAsFixed(0)} • ২০% ডিপোজিট: ৳${order.depositRequired.toStringAsFixed(0)}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0369A1)),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                const Text('ফেরতকৃত রিফান্ড টাকার পরিমাণ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: refundAmountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    prefixText: '৳ ',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                const Text('রিফান্ড ট্রানজেকশন নোট / প্রমাণ:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: refundNotesController,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    hintText: 'যেমন: bKash TrxID: 98AB52718',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('বাতিল'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final double amt = double.tryParse(refundAmountController.text.trim()) ?? order.depositRequired;
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              Navigator.pop(dialogCtx);
+
+              final success = await repo.processOrderRefund(
+                orderId: order.id,
+                refundAmount: amt,
+                refundNotes: refundNotesController.text.trim(),
+              );
+
+              if (context.mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '✅ রিফান্ড সফলভাবে সম্পন্ন হয়েছে ও দোকানদারকে অবহিত করা হয়েছে।'
+                          : '❌ রিফান্ড আপডেট ব্যর্থ হয়েছে',
+                    ),
+                    backgroundColor: success ? const Color(0xFF166534) : Colors.red,
+                  ),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0284C7),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('রিফান্ড সম্পন্ন নিশ্চিত করুন 💸'),
+          ),
+        ],
       ),
     );
   }

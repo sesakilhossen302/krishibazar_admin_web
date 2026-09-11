@@ -243,4 +243,82 @@ class AdminApiService {
       return false;
     }
   }
+
+  /// Admin confirms deposit payment and assigns collection inspection agent
+  static Future<bool> confirmOrderPayment({
+    required String orderId,
+    String? notes,
+    String? inspectorName,
+    String? inspectorDesignation,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/orders/$orderId/confirm-payment');
+      final Map<String, dynamic> body = {};
+      if (notes != null) body['notes'] = notes;
+      if (inspectorName != null) body['inspector_name'] = inspectorName;
+      if (inspectorDesignation != null) body['inspector_designation'] = inspectorDesignation;
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - CONFIRM PAYMENT]: $e');
+      return false;
+    }
+  }
+
+  /// Admin rejects produce quality with a reason and triggers refund process
+  static Future<bool> rejectOrderQuality({
+    required String orderId,
+    required String rejectionReason,
+    String? notes,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/orders/$orderId/reject-quality');
+      final Map<String, dynamic> body = {
+        'rejection_reason': rejectionReason,
+      };
+      if (notes != null) body['notes'] = notes;
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - REJECT QUALITY]: $e');
+      return false;
+    }
+  }
+
+  /// Admin processes and confirms 20% advance refund to buyer
+  static Future<bool> processOrderRefund({
+    required String orderId,
+    double? refundAmount,
+    String? refundNotes,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/orders/$orderId/process-refund');
+      final Map<String, dynamic> body = {};
+      if (refundAmount != null) body['refund_amount'] = refundAmount;
+      if (refundNotes != null) body['refund_notes'] = refundNotes;
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - PROCESS REFUND]: $e');
+      return false;
+    }
+  }
 }

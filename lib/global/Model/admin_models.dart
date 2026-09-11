@@ -38,13 +38,16 @@ extension ProductUnitExt on ProductUnit {
 
 enum OrderStatus {
   pending,
+  paymentPending,
   paymentConfirmed,
   collectionVerified,
+  qualityRejected,
   inTransit,
   collected,
   preparing,
   delivered,
   completed,
+  refunded,
   disputed,
   cancelled,
 }
@@ -53,23 +56,29 @@ extension OrderStatusExt on OrderStatus {
   String get labelBn {
     switch (this) {
       case OrderStatus.pending:
-        return 'অপেক্ষমাণ';
+        return 'অপেক্ষমাণ (ডিপোজিট বাকি)';
+      case OrderStatus.paymentPending:
+        return 'পেমেন্ট যাচাই পেন্ডিং ⏳';
       case OrderStatus.paymentConfirmed:
-        return 'পেমেন্ট কনফার্মড';
+        return 'পেমেন্ট কনফার্মড 🔬';
       case OrderStatus.collectionVerified:
-        return 'হাব যাচাই সম্পন্ন';
+        return 'হাব মান যাচাই সম্পন্ন ⚖️';
+      case OrderStatus.qualityRejected:
+        return 'পণ্য মানসম্মত নয় (বাতিল) ❌';
       case OrderStatus.inTransit:
-        return 'পরিবহনে চলমান';
+        return 'পরিবহনে চলমান 🚚';
       case OrderStatus.collected:
         return 'পণ্য সংগৃহীত';
       case OrderStatus.preparing:
         return 'প্রস্তুত হচ্ছে';
       case OrderStatus.delivered:
-        return 'ডেলিভারি সম্পন্ন';
+        return 'ডেলিভারি সম্পন্ন 📦';
       case OrderStatus.completed:
         return 'সম্পন্ন (Completed ✅)';
+      case OrderStatus.refunded:
+        return 'রিফান্ড সম্পন্ন 💰';
       case OrderStatus.disputed:
-        return 'অভিযোগাধীন';
+        return 'অভিযোগাধীন ⚠️';
       case OrderStatus.cancelled:
         return 'বাতিল';
     }
@@ -377,6 +386,8 @@ class AdminOrderRecord {
   final double totalAmount;
   final double depositRequired;
   final bool isDepositPaid;
+  final String paymentStatus;
+  final String paymentVerificationNotes;
   final OrderStatus orderStatus;
   final String deliveryLocation;
   final String expectedDeliveryDate;
@@ -389,6 +400,7 @@ class AdminOrderRecord {
   final String vehicleNumber;
   final String transportStatus;
   final String transportStatusText;
+  final String transportAgency;
 
   // Verification
   final double? actualWeight;
@@ -396,6 +408,15 @@ class AdminOrderRecord {
   final String verifiedBy;
   final String verificationNotes;
   final bool isQualityVerified;
+  final String inspectorName;
+  final String inspectorDesignation;
+  final bool? isQualityPassed;
+  final String rejectionReason;
+
+  // Refund
+  final String refundStatus;
+  final double refundAmount;
+  final String refundNotes;
 
   final String createdAt;
 
@@ -418,6 +439,8 @@ class AdminOrderRecord {
     required this.totalAmount,
     this.depositRequired = 0,
     this.isDepositPaid = false,
+    this.paymentStatus = 'unpaid',
+    this.paymentVerificationNotes = '',
     required this.orderStatus,
     this.deliveryLocation = '',
     this.expectedDeliveryDate = '',
@@ -428,11 +451,19 @@ class AdminOrderRecord {
     this.vehicleNumber = 'ঢাকা মেট্রো-ট ১১-৪৫২৩',
     this.transportStatus = 'waiting',
     required this.transportStatusText,
+    this.transportAgency = '',
     this.actualWeight,
     this.qualityGrade = 'গ্রেড A (প্রিমিয়াম মান)',
     this.verifiedBy = 'সেলিম রেজা (ইনস্পেক্টর)',
     this.verificationNotes = 'পণ্য ফ্রেশ ও পাকা ছিল',
     this.isQualityVerified = false,
+    this.inspectorName = '',
+    this.inspectorDesignation = '',
+    this.isQualityPassed,
+    this.rejectionReason = '',
+    this.refundStatus = 'none',
+    this.refundAmount = 0.0,
+    this.refundNotes = '',
     this.createdAt = '',
   });
 
@@ -476,6 +507,10 @@ class AdminOrderRecord {
         ? (json['actual_weight'] as num).toDouble()
         : (double.tryParse(json['actual_weight']?.toString() ?? ''));
 
+    final double refAmt = (json['refund_amount'] is num)
+        ? (json['refund_amount'] as num).toDouble()
+        : (double.tryParse(json['refund_amount']?.toString() ?? '') ?? 0.0);
+
     final bool isVerified = json['is_quality_verified'] == true ||
         st == OrderStatus.collectionVerified ||
         st == OrderStatus.inTransit ||
@@ -501,6 +536,8 @@ class AdminOrderRecord {
       totalAmount: total,
       depositRequired: dep,
       isDepositPaid: json['is_deposit_paid'] == true,
+      paymentStatus: (json['payment_status'] ?? 'unpaid').toString(),
+      paymentVerificationNotes: (json['payment_verification_notes'] ?? '').toString(),
       orderStatus: st,
       deliveryLocation: json['delivery_location']?.toString() ?? '',
       expectedDeliveryDate: json['expected_delivery_date']?.toString() ?? '',
@@ -511,11 +548,19 @@ class AdminOrderRecord {
       vehicleNumber: json['vehicle_number']?.toString() ?? 'ঢাকা মেট্রো-ট ১১-৪৫২৩',
       transportStatus: rawTr,
       transportStatusText: trText,
+      transportAgency: (json['transport_agency'] ?? '').toString(),
       actualWeight: actWeight ?? qty,
       qualityGrade: json['quality_grade']?.toString() ?? 'গ্রেড A (প্রিমিয়াম মান)',
       verifiedBy: json['verified_by']?.toString() ?? 'সেলিম রেজা (ইনস্পেক্টর)',
       verificationNotes: json['verification_notes']?.toString() ?? 'পণ্য ফ্রেশ ও পাকা ছিল',
       isQualityVerified: isVerified,
+      inspectorName: (json['inspector_name'] ?? '').toString(),
+      inspectorDesignation: (json['inspector_designation'] ?? '').toString(),
+      isQualityPassed: json['is_quality_passed'] as bool?,
+      rejectionReason: (json['rejection_reason'] ?? '').toString(),
+      refundStatus: (json['refund_status'] ?? 'none').toString(),
+      refundAmount: refAmt,
+      refundNotes: (json['refund_notes'] ?? '').toString(),
       createdAt: json['created_at']?.toString() ?? '',
     );
   }

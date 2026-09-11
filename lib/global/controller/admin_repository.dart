@@ -583,6 +583,56 @@ class AdminRepository extends ChangeNotifier {
     return success;
   }
 
+  Future<bool> confirmOrderPayment({
+    required String orderId,
+    String? notes,
+    String? inspectorName,
+    String? inspectorDesignation,
+  }) async {
+    final success = await AdminApiService.confirmOrderPayment(
+      orderId: orderId,
+      notes: notes,
+      inspectorName: inspectorName,
+      inspectorDesignation: inspectorDesignation,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> rejectOrderQuality({
+    required String orderId,
+    required String rejectionReason,
+    String? notes,
+  }) async {
+    final success = await AdminApiService.rejectOrderQuality(
+      orderId: orderId,
+      rejectionReason: rejectionReason,
+      notes: notes,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> processOrderRefund({
+    required String orderId,
+    double? refundAmount,
+    String? refundNotes,
+  }) async {
+    final success = await AdminApiService.processOrderRefund(
+      orderId: orderId,
+      refundAmount: refundAmount,
+      refundNotes: refundNotes,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
   Future<bool> updateOrderStatus({
     required String orderId,
     required String status,
