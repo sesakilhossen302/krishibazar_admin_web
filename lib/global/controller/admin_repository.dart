@@ -647,6 +647,22 @@ class AdminRepository extends ChangeNotifier {
     return success;
   }
 
+  Future<bool> confirmFarmerPayout({
+    required String orderId,
+    String? notes,
+    String? transactionId,
+  }) async {
+    final success = await AdminApiService.confirmFarmerPayout(
+      orderId: orderId,
+      notes: notes,
+      transactionId: transactionId,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
   Future<bool> approveProduct(String productId) async {
     final idx = _products.indexWhere((p) => p.id == productId);
     if (idx != -1) {

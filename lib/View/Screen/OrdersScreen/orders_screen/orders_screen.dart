@@ -394,11 +394,20 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'পরিমাণ: ${order.quantity.toStringAsFixed(0)} ${order.unit} • একক দর: ৳${order.pricePerUnit.toStringAsFixed(0)} • মোট মূল্য: ৳${order.totalAmount.toStringAsFixed(0)} • ডিপোজিট: ৳${order.depositRequired.toStringAsFixed(0)}',
+                      'পরিমাণ: ${order.quantity.toStringAsFixed(0)} ${order.unit} • একক দর: ৳${order.pricePerUnit.toStringAsFixed(0)} • পণ্যের মূল্য: ৳${order.totalAmount.toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF166534),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'দোকানদার মোট: ৳${(order.buyerTotalAmount > 0 ? order.buyerTotalAmount : order.totalAmount * 1.05).toStringAsFixed(0)} (+৫% ফি: ৳${(order.buyerServiceFee > 0 ? order.buyerServiceFee : order.totalAmount * 0.05).toStringAsFixed(0)}) • কৃষকের নিট পাওনা: ৳${(order.farmerPayoutAmount > 0 ? order.farmerPayoutAmount : order.totalAmount * 0.95).toStringAsFixed(0)} (-৫% ফি: ৳${(order.farmerServiceFee > 0 ? order.farmerServiceFee : order.totalAmount * 0.05).toStringAsFixed(0)})',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
                       ),
                     ),
                   ],
@@ -704,6 +713,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     side: const BorderSide(color: Color(0xFF0284C7)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+
+              // 4.5. Disburse Farmer Payout Button (When order is delivered or completed)
+              if ((order.orderStatus == OrderStatus.delivered || order.orderStatus == OrderStatus.completed) &&
+                  !isQualityRejected && !isRefunded)
+                ElevatedButton.icon(
+                  onPressed: order.farmerPayoutStatus == 'completed'
+                      ? null
+                      : () => _openFarmerPayoutDialog(context, order, repo),
+                  icon: Icon(
+                    order.farmerPayoutStatus == 'completed'
+                        ? Icons.check_circle
+                        : Icons.account_balance_wallet_outlined,
+                    size: 16,
+                  ),
+                  label: Text(
+                    order.farmerPayoutStatus == 'completed'
+                        ? 'কৃষকের পেআউট সম্পন্ন ✅'
+                        : 'কৃষককে পেআউট পাঠান ৳${(order.farmerPayoutAmount > 0 ? order.farmerPayoutAmount : order.totalAmount * 0.95).toStringAsFixed(0)} 💰',
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: order.farmerPayoutStatus == 'completed'
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFF166534),
+                    foregroundColor: order.farmerPayoutStatus == 'completed'
+                        ? const Color(0xFF166534)
+                        : Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
@@ -1412,6 +1451,152 @@ class _OrdersScreenState extends State<OrdersScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Farmer Payout Confirmation Dialog
+  void _openFarmerPayoutDialog(BuildContext context, AdminOrderRecord order, AdminRepository repo) {
+    final notesController = TextEditingController(text: 'কৃষকের বিকাশ/ব্যাংক অ্যাকাউন্টে টাকা পরিশোধ করা হয়েছে');
+    final trxController = TextEditingController();
+
+    final netPayout = order.farmerPayoutAmount > 0 ? order.farmerPayoutAmount : (order.totalAmount * 0.95);
+    final farmerFee = order.farmerServiceFee > 0 ? order.farmerServiceFee : (order.totalAmount * 0.05);
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.payments_outlined, color: Color(0xFF166534)),
+            SizedBox(width: 8),
+            Text(
+              'কৃষককে নিট পাওনা পরিশোধ',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF166534)),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0FDF4),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'অর্ডার নং: #${order.orderNumber} • কৃষক: ${order.farmerName}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF14532D)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'মোবাইল: ${order.farmerPhone.isNotEmpty ? order.farmerPhone : "তথ্য নেই"} • ঠিকানা: ${order.farmerLocation}',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF166534)),
+                    ),
+                    const Divider(height: 14, color: Color(0xFFBBF7D0)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('পণ্যের মোট মূল্য:', style: TextStyle(fontSize: 12, color: Color(0xFF166534))),
+                        Text('৳${order.totalAmount.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('প্ল্যাটফর্ম ফি (-৫%):', style: TextStyle(fontSize: 12, color: Color(0xFFEA580C))),
+                        Text('- ৳${farmerFee.toStringAsFixed(0)}', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEA580C), fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('কৃষকের নিট পাওনা:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF14532D))),
+                        Text('৳${netPayout.toStringAsFixed(0)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900, color: Color(0xFF166534))),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                '💡 ডেলিভারি ম্যানের কাছ থেকে অবশিষ্ট নগদ ক্যাশ টাকা অফিসে জমার পর কৃষকের বিকাশ/ব্যাংক অ্যাকাউন্টে টাকা পাঠিয়ে ট্রানজ্যাকশন আইডি ও নোট নিশ্চিত করুন।',
+                style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: trxController,
+                decoration: InputDecoration(
+                  labelText: 'ট্রানজ্যাকশন আইডি / TrxID (ঐচ্ছিক)',
+                  hintText: 'যেমন: 9J4K2L8M7N',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: 'পেমেন্ট মেথড ও নোট',
+                  hintText: 'বিকাশ/নগদ/ব্যাংক ট্রান্সফার সংক্রান্ত নোট',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('বাতিল'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              Navigator.pop(dialogCtx);
+
+              final success = await repo.confirmFarmerPayout(
+                orderId: order.id,
+                notes: notesController.text.trim(),
+                transactionId: trxController.text.trim(),
+              );
+
+              if (context.mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      success
+                          ? '✅ কৃষকের একাউন্টে নিট ৳${netPayout.toStringAsFixed(0)} পেআউট সফলভাবে নিশ্চিত করা হয়েছে!'
+                          : '❌ পেআউট নিশ্চিতকরণ ব্যর্থ হয়েছে',
+                    ),
+                    backgroundColor: success ? const Color(0xFF166534) : Colors.red,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('পেআউট সম্পন্ন করুন'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF166534),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -321,4 +321,30 @@ class AdminApiService {
       return false;
     }
   }
+
+  /// Admin confirms net payout disbursement to the farmer
+  static Future<bool> confirmFarmerPayout({
+    required String orderId,
+    String? notes,
+    String? transactionId,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/orders/$orderId/farmer-payout');
+      final Map<String, dynamic> body = {
+        'notes': notes ?? 'কৃষকের বিকাশ/ব্যাংক অ্যাকাউন্টে টাকা পরিশোধ করা হয়েছে',
+        'transaction_id': transactionId ?? '',
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - FARMER PAYOUT]: $e');
+      return false;
+    }
+  }
 }

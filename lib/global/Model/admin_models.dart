@@ -420,6 +420,16 @@ class AdminOrderRecord {
 
   final String createdAt;
 
+  // Platform fees & payout
+  final double productAmount;
+  final double buyerServiceFee;
+  final double buyerTotalAmount;
+  final double farmerServiceFee;
+  final double farmerPayoutAmount;
+  final String farmerPayoutStatus;
+  final String farmerPayoutNotes;
+  final String farmerPayoutDate;
+
   AdminOrderRecord({
     required this.id,
     required this.orderNumber,
@@ -465,6 +475,14 @@ class AdminOrderRecord {
     this.refundAmount = 0.0,
     this.refundNotes = '',
     this.createdAt = '',
+    this.productAmount = 0,
+    this.buyerServiceFee = 0,
+    this.buyerTotalAmount = 0,
+    this.farmerServiceFee = 0,
+    this.farmerPayoutAmount = 0,
+    this.farmerPayoutStatus = 'unpaid',
+    this.farmerPayoutNotes = '',
+    this.farmerPayoutDate = '',
   });
 
   factory AdminOrderRecord.fromJson(Map<String, dynamic> json) {
@@ -517,6 +535,26 @@ class AdminOrderRecord {
         st == OrderStatus.delivered ||
         st == OrderStatus.completed;
 
+    final double prodAmt = (json['product_amount'] is num)
+        ? (json['product_amount'] as num).toDouble()
+        : total;
+    final double bFee = (json['buyer_service_fee'] is num)
+        ? (json['buyer_service_fee'] as num).toDouble()
+        : (prodAmt * 0.05);
+    final double bTotal = (json['buyer_total_amount'] is num)
+        ? (json['buyer_total_amount'] as num).toDouble()
+        : (prodAmt + bFee);
+    final double fFee = (json['farmer_service_fee'] is num)
+        ? (json['farmer_service_fee'] as num).toDouble()
+        : (prodAmt * 0.05);
+    final double fPayout = (json['farmer_payout_amount'] is num)
+        ? (json['farmer_payout_amount'] as num).toDouble()
+        : (prodAmt - fFee);
+    final String fPayoutStatus = (json['farmer_payout_status'] ??
+        (st == OrderStatus.delivered || st == OrderStatus.completed ? 'pending' : 'unpaid')).toString();
+    final String fPayoutNotes = (json['farmer_payout_notes'] ?? '').toString();
+    final String fPayoutDate = (json['farmer_payout_date'] ?? '').toString();
+
     return AdminOrderRecord(
       id: json['id']?.toString() ?? '',
       orderNumber: json['order_number']?.toString() ?? '',
@@ -562,6 +600,14 @@ class AdminOrderRecord {
       refundAmount: refAmt,
       refundNotes: (json['refund_notes'] ?? '').toString(),
       createdAt: json['created_at']?.toString() ?? '',
+      productAmount: prodAmt > 0 ? prodAmt : total,
+      buyerServiceFee: bFee,
+      buyerTotalAmount: bTotal > 0 ? bTotal : (total + bFee),
+      farmerServiceFee: fFee,
+      farmerPayoutAmount: fPayout > 0 ? fPayout : (total - fFee),
+      farmerPayoutStatus: fPayoutStatus,
+      farmerPayoutNotes: fPayoutNotes,
+      farmerPayoutDate: fPayoutDate,
     );
   }
 }
