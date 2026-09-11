@@ -31,6 +31,8 @@ class AdminRepository extends ChangeNotifier {
   bool get isLoadingUsers => _isLoadingUsers;
   bool _isLoadingProducts = false;
   bool get isLoadingProducts => _isLoadingProducts;
+  bool _isLoadingOrders = false;
+  bool get isLoadingOrders => _isLoadingOrders;
 
   void setActiveNavIndex(int index) {
     activeNavIndex = index;
@@ -67,6 +69,7 @@ class AdminRepository extends ChangeNotifier {
     fetchUsersFromBackend();
     fetchProductsFromBackend();
     fetchDemandsFromBackend();
+    fetchOrdersFromBackend();
   }
 
   Future<void> fetchUsersFromBackend() async {
@@ -517,6 +520,81 @@ class AdminRepository extends ChangeNotifier {
     } catch (e) {
       debugPrint('⚠️ [ADMIN REPO] Error fetching demands: $e');
     }
+  }
+
+  Future<void> fetchOrdersFromBackend() async {
+    _isLoadingOrders = true;
+    notifyListeners();
+
+    try {
+      final data = await AdminApiService.fetchAllOrders();
+      if (data.isNotEmpty) {
+        _orders = data.map((json) => AdminOrderRecord.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN REPO] Error fetching orders: $e');
+    } finally {
+      _isLoadingOrders = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> verifyOrderQuality({
+    required String orderId,
+    required double actualWeight,
+    required String qualityGrade,
+    String? verifiedBy,
+    String? verificationNotes,
+  }) async {
+    final success = await AdminApiService.verifyOrderQuality(
+      orderId: orderId,
+      actualWeight: actualWeight,
+      qualityGrade: qualityGrade,
+      verifiedBy: verifiedBy,
+      verificationNotes: verificationNotes,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> updateOrderTransport({
+    required String orderId,
+    String? driverName,
+    String? driverPhone,
+    String? vehicleNumber,
+    String? transportStatus,
+    String? pickupLocation,
+    String? collectionCenter,
+  }) async {
+    final success = await AdminApiService.updateOrderTransport(
+      orderId: orderId,
+      driverName: driverName,
+      driverPhone: driverPhone,
+      vehicleNumber: vehicleNumber,
+      transportStatus: transportStatus,
+      pickupLocation: pickupLocation,
+      collectionCenter: collectionCenter,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> updateOrderStatus({
+    required String orderId,
+    required String status,
+  }) async {
+    final success = await AdminApiService.updateOrderStatus(
+      orderId: orderId,
+      status: status,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
   }
 
   Future<bool> approveProduct(String productId) async {

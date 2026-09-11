@@ -362,22 +362,163 @@ class AdminOrderRecord {
   final String id;
   final String orderNumber;
   final String productTitle;
+  final String category;
+  final double quantity;
+  final String unit;
+  final double pricePerUnit;
+  final String farmerId;
   final String farmerName;
+  final String farmerPhone;
+  final String farmerLocation;
+  final String buyerId;
   final String buyerName;
+  final String buyerPhone;
+  final String buyerBusinessName;
   final double totalAmount;
+  final double depositRequired;
+  final bool isDepositPaid;
   final OrderStatus orderStatus;
+  final String deliveryLocation;
+  final String expectedDeliveryDate;
+
+  // Transport
+  final String pickupLocation;
+  final String collectionCenter;
+  final String driverName;
+  final String driverPhone;
+  final String vehicleNumber;
+  final String transportStatus;
   final String transportStatusText;
+
+  // Verification
+  final double? actualWeight;
+  final String qualityGrade;
+  final String verifiedBy;
+  final String verificationNotes;
+  final bool isQualityVerified;
+
+  final String createdAt;
 
   AdminOrderRecord({
     required this.id,
     required this.orderNumber,
     required this.productTitle,
+    this.category = 'সবজি',
+    this.quantity = 0,
+    this.unit = 'কেজি (kg)',
+    this.pricePerUnit = 0,
+    this.farmerId = '',
     required this.farmerName,
+    this.farmerPhone = '',
+    this.farmerLocation = '',
+    this.buyerId = '',
     required this.buyerName,
+    this.buyerPhone = '',
+    this.buyerBusinessName = '',
     required this.totalAmount,
+    this.depositRequired = 0,
+    this.isDepositPaid = false,
     required this.orderStatus,
+    this.deliveryLocation = '',
+    this.expectedDeliveryDate = '',
+    this.pickupLocation = '',
+    this.collectionCenter = '',
+    this.driverName = 'মোঃ রফিকুল ইসলাম',
+    this.driverPhone = '01712-345678',
+    this.vehicleNumber = 'ঢাকা মেট্রো-ট ১১-৪৫২৩',
+    this.transportStatus = 'waiting',
     required this.transportStatusText,
+    this.actualWeight,
+    this.qualityGrade = 'গ্রেড A (প্রিমিয়াম মান)',
+    this.verifiedBy = 'সেলিম রেজা (ইনস্পেক্টর)',
+    this.verificationNotes = 'পণ্য ফ্রেশ ও পাকা ছিল',
+    this.isQualityVerified = false,
+    this.createdAt = '',
   });
+
+  factory AdminOrderRecord.fromJson(Map<String, dynamic> json) {
+    OrderStatus st = OrderStatus.pending;
+    final rawStatus = (json['order_status'] ?? 'pending').toString().toLowerCase();
+    for (var s in OrderStatus.values) {
+      if (s.name.toLowerCase() == rawStatus || s.labelBn.toLowerCase() == rawStatus) {
+        st = s;
+        break;
+      }
+    }
+
+    final rawTr = (json['transport_status'] ?? 'waiting').toString();
+    String trText = 'পিকআপের অপেক্ষায়';
+    if (rawTr == 'in_transit' || rawTr == 'inTransit' || rawTr == 'onTheWay') {
+      trText = 'ইন ট্রানজিট (পথে আছে)';
+    } else if (rawTr == 'delivered' || rawTr == 'reached') {
+      trText = 'ডেলিভারি সম্পন্ন';
+    } else if (rawTr == 'pickup' || rawTr == 'loaded') {
+      trText = 'সংগ্রহ ও লোড সম্পন্ন';
+    }
+
+    final double qty = (json['quantity'] is num)
+        ? (json['quantity'] as num).toDouble()
+        : (double.tryParse(json['quantity']?.toString() ?? '') ?? 0.0);
+
+    final double price = (json['price_per_unit'] is num)
+        ? (json['price_per_unit'] as num).toDouble()
+        : (double.tryParse(json['price_per_unit']?.toString() ?? '') ?? 0.0);
+
+    final double total = (json['total_amount'] is num)
+        ? (json['total_amount'] as num).toDouble()
+        : (double.tryParse(json['total_amount']?.toString() ?? '') ?? (qty * price));
+
+    final double dep = (json['deposit_required'] is num)
+        ? (json['deposit_required'] as num).toDouble()
+        : (double.tryParse(json['deposit_required']?.toString() ?? '') ?? (total * 0.20));
+
+    final double? actWeight = (json['actual_weight'] is num)
+        ? (json['actual_weight'] as num).toDouble()
+        : (double.tryParse(json['actual_weight']?.toString() ?? ''));
+
+    final bool isVerified = json['is_quality_verified'] == true ||
+        st == OrderStatus.collectionVerified ||
+        st == OrderStatus.inTransit ||
+        st == OrderStatus.delivered ||
+        st == OrderStatus.completed;
+
+    return AdminOrderRecord(
+      id: json['id']?.toString() ?? '',
+      orderNumber: json['order_number']?.toString() ?? '',
+      productTitle: json['product_title']?.toString() ?? '',
+      category: json['category']?.toString() ?? 'সবজি',
+      quantity: qty,
+      unit: json['unit']?.toString() ?? 'কেজি (kg)',
+      pricePerUnit: price,
+      farmerId: json['farmer_id']?.toString() ?? '',
+      farmerName: json['farmer_name']?.toString() ?? 'কৃষক',
+      farmerPhone: json['farmer_phone']?.toString() ?? '',
+      farmerLocation: json['farmer_location']?.toString() ?? '',
+      buyerId: json['buyer_id']?.toString() ?? '',
+      buyerName: json['buyer_name']?.toString() ?? 'ক্রেতা',
+      buyerPhone: json['buyer_phone']?.toString() ?? '',
+      buyerBusinessName: json['buyer_business_name']?.toString() ?? '',
+      totalAmount: total,
+      depositRequired: dep,
+      isDepositPaid: json['is_deposit_paid'] == true,
+      orderStatus: st,
+      deliveryLocation: json['delivery_location']?.toString() ?? '',
+      expectedDeliveryDate: json['expected_delivery_date']?.toString() ?? '',
+      pickupLocation: json['pickup_location']?.toString() ?? '',
+      collectionCenter: json['collection_center']?.toString() ?? '',
+      driverName: json['driver_name']?.toString() ?? 'মোঃ রফিকুল ইসলাম',
+      driverPhone: json['driver_phone']?.toString() ?? '01712-345678',
+      vehicleNumber: json['vehicle_number']?.toString() ?? 'ঢাকা মেট্রো-ট ১১-৪৫২৩',
+      transportStatus: rawTr,
+      transportStatusText: trText,
+      actualWeight: actWeight ?? qty,
+      qualityGrade: json['quality_grade']?.toString() ?? 'গ্রেড A (প্রিমিয়াম মান)',
+      verifiedBy: json['verified_by']?.toString() ?? 'সেলিম রেজা (ইনস্পেক্টর)',
+      verificationNotes: json['verification_notes']?.toString() ?? 'পণ্য ফ্রেশ ও পাকা ছিল',
+      isQualityVerified: isVerified,
+      createdAt: json['created_at']?.toString() ?? '',
+    );
+  }
 }
 
 class AdminDisputeRecord {
