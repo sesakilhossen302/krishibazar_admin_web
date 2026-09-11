@@ -606,10 +606,18 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     if (order.transportAgency.isNotEmpty)
                       Text('সংস্থা: ${order.transportAgency}',
                           style: const TextStyle(fontSize: 12, color: Color(0xFF334155), fontWeight: FontWeight.bold)),
-                    Text('ড্রাইভার: ${order.driverName} (${order.driverPhone})',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-                    Text('গাড়ির নম্বর: ${order.vehicleNumber}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF475569))),
+                    Text(
+                      order.driverName.isNotEmpty
+                          ? 'ড্রাইভার: ${order.driverName}${order.driverPhone.isNotEmpty ? " (${order.driverPhone})" : ""}'
+                          : 'ড্রাইভার: নিযুক্ত করা হয়নি (অপেক্ষমাণ)',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                    ),
+                    Text(
+                      order.vehicleNumber.isNotEmpty
+                          ? 'গাড়ির নম্বর: ${order.vehicleNumber}'
+                          : 'গাড়ির নম্বর: নির্ধারিত হয়নি',
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                    ),
                     Text('গন্তব্য: ${order.deliveryLocation}',
                         style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                   ],
