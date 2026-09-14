@@ -8,6 +8,7 @@ import '../../../Widgegt/WebSidebar/web_sidebar.dart';
 import '../../DisputesScreen/disputes_screen/disputes_screen.dart';
 import '../../OrdersScreen/orders_screen/orders_screen.dart';
 import '../../OverviewScreen/overview_screen/overview_screen.dart';
+import '../../SettingsScreen/settings_screen.dart';
 import '../../VerificationScreen/buyer_verification_screen.dart';
 import '../../VerificationScreen/demand_monitoring_screen.dart';
 import '../../VerificationScreen/farmer_verification_screen.dart';
@@ -35,6 +36,7 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
     'চাহিদা তদারকি',
     'অর্ডার ট্র্যাকিং',
     'অভিযোগ নিষ্পত্তি',
+    'সেটিংস',
   ];
 
   @override
@@ -63,6 +65,9 @@ class _AdminMainScreenState extends State<AdminMainScreen> {
         break;
       case 6:
         activeTabWidget = const DisputesScreen();
+        break;
+      case 7:
+        activeTabWidget = const SettingsScreen();
         break;
       default:
         activeTabWidget = const OverviewScreen();

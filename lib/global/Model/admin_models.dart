@@ -388,6 +388,11 @@ class AdminOrderRecord {
   final bool isDepositPaid;
   final String paymentStatus;
   final String paymentVerificationNotes;
+  final String depositPaymentMethod;
+  final String depositSenderPhone;
+  final String depositTransactionId;
+  final String depositProofUrl;
+  final String depositAdminFeedback;
   final OrderStatus orderStatus;
   final String deliveryLocation;
   final String expectedDeliveryDate;
@@ -451,6 +456,11 @@ class AdminOrderRecord {
     this.isDepositPaid = false,
     this.paymentStatus = 'unpaid',
     this.paymentVerificationNotes = '',
+    this.depositPaymentMethod = '',
+    this.depositSenderPhone = '',
+    this.depositTransactionId = '',
+    this.depositProofUrl = '',
+    this.depositAdminFeedback = '',
     required this.orderStatus,
     this.deliveryLocation = '',
     this.expectedDeliveryDate = '',
@@ -576,6 +586,11 @@ class AdminOrderRecord {
       isDepositPaid: json['is_deposit_paid'] == true,
       paymentStatus: (json['payment_status'] ?? 'unpaid').toString(),
       paymentVerificationNotes: (json['payment_verification_notes'] ?? '').toString(),
+      depositPaymentMethod: (json['deposit_payment_method'] ?? '').toString(),
+      depositSenderPhone: (json['deposit_sender_phone'] ?? '').toString(),
+      depositTransactionId: (json['deposit_transaction_id'] ?? '').toString(),
+      depositProofUrl: (json['deposit_proof_url'] ?? '').toString(),
+      depositAdminFeedback: (json['deposit_admin_feedback'] ?? '').toString(),
       orderStatus: st,
       deliveryLocation: json['delivery_location']?.toString() ?? '',
       expectedDeliveryDate: json['expected_delivery_date']?.toString() ?? '',
@@ -634,3 +649,67 @@ class AdminDisputeRecord {
 
 typedef OrderTrackingRecord = AdminOrderRecord;
 typedef DisputeResolutionRecord = AdminDisputeRecord;
+
+class PaymentSettingModel {
+  final String id;
+  final String name;
+  final String accountNumber;
+  final String accountType;
+  final bool isActive;
+  final String instructions;
+  final String updatedAt;
+
+  PaymentSettingModel({
+    required this.id,
+    required this.name,
+    required this.accountNumber,
+    this.accountType = 'Personal',
+    this.isActive = false,
+    this.instructions = '',
+    this.updatedAt = '',
+  });
+
+  PaymentSettingModel copyWith({
+    String? id,
+    String? name,
+    String? accountNumber,
+    String? accountType,
+    bool? isActive,
+    String? instructions,
+    String? updatedAt,
+  }) {
+    return PaymentSettingModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      accountNumber: accountNumber ?? this.accountNumber,
+      accountType: accountType ?? this.accountType,
+      isActive: isActive ?? this.isActive,
+      instructions: instructions ?? this.instructions,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  factory PaymentSettingModel.fromJson(Map<String, dynamic> json) {
+    return PaymentSettingModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      accountNumber: json['account_number']?.toString() ?? '',
+      accountType: json['account_type']?.toString() ?? 'Personal',
+      isActive: json['is_active'] == true,
+      instructions: (json['instructions'] ?? '').toString(),
+      updatedAt: (json['updated_at'] ?? '').toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'account_number': accountNumber,
+      'account_type': accountType,
+      'is_active': isActive,
+      'instructions': instructions,
+      'updated_at': updatedAt,
+    };
+  }
+}

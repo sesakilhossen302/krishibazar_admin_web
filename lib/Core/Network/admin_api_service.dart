@@ -376,4 +376,80 @@ class AdminApiService {
       return false;
     }
   }
+
+  /// Admin rejects buyer deposit or reports discrepancy with note
+  static Future<bool> rejectOrderDeposit({
+    required String orderId,
+    required String rejectionReason,
+    String? notes,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl/orders/$orderId/reject-deposit');
+      final Map<String, dynamic> body = {
+        'rejection_reason': rejectionReason,
+        'notes': notes ?? '',
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(body),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - REJECT DEPOSIT]: $e');
+      return false;
+    }
+  }
+
+  /// Fetch payment methods from backend
+  static Future<List<Map<String, dynamic>>> fetchPaymentSettings() async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/payment-methods');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.cast<Map<String, dynamic>>();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - FETCH PAYMENT SETTINGS]: $e');
+    }
+    return [];
+  }
+
+  /// Admin saves or updates a payment method (bKash, Nagad, Rocket)
+  static Future<bool> savePaymentSetting(Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/payment-methods');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(data),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - SAVE PAYMENT SETTING]: $e');
+      return false;
+    }
+  }
+
+  /// Admin toggles on/off or updates specific payment method
+  static Future<bool> updatePaymentSetting(String id, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/payment-methods/$id');
+      final response = await http.patch(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(data),
+      ).timeout(const Duration(seconds: 8));
+
+      return response.statusCode == 200;
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - UPDATE PAYMENT SETTING]: $e');
+      return false;
+    }
+  }
 }

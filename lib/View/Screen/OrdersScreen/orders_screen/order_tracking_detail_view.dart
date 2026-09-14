@@ -750,13 +750,21 @@ class _OrderTrackingDetailViewState extends State<OrderTrackingDetailView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'ক্রেতার ২০% জামানত বাবদ ৳ ${o.depositRequired.toStringAsFixed(2)} কৃষিবাজারের তহবিলে সফলভাবে জমা হয়েছে।',
+                                'ক্রেতার ২০% জামানত বাবদ ৳ ${o.depositRequired.toStringAsFixed(2)} কৃষিবাজারের তহবিলে সফলভাবে জমা ও নিশ্চিত হয়েছে।',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
                                   color: Color(0xFF166534),
                                 ),
                               ),
+                              if (o.depositTransactionId.isNotEmpty)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    'মাধ্যম: ${o.depositPaymentMethod.toUpperCase()} | TrxID: ${o.depositTransactionId} | প্রেরক: ${o.depositSenderPhone}',
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+                                  ),
+                                ),
                               if (o.paymentVerificationNotes.isNotEmpty)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
@@ -774,76 +782,346 @@ class _OrderTrackingDetailViewState extends State<OrderTrackingDetailView> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Submitted Proof Box
                       Container(
-                        padding: const EdgeInsets.all(14),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFFBEB),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFFDE68A)),
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.info_outline, color: Color(0xFFD97706), size: 24),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'ক্রেতা ${o.buyerName} ২০% সিকিউরিটি ডিপোজিট (৳ ${o.depositRequired.toStringAsFixed(2)}) জমা দেওয়ার অনুরোধ পাঠিয়েছেন। অ্যাডমিন হিসেবে ব্যাংকে/মোবাইল ব্যাংকিংয়ে টাকা প্রাপ্তি নিশ্চিত করে নিচের বাটনে ক্লিক করুন।',
-                                style: const TextStyle(fontSize: 13, color: Color(0xFF92400E)),
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'ক্রেতার জমাকৃত পেমেন্ট প্রমাণাদি:',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                                ),
+                                if (o.depositPaymentMethod.isNotEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                                    ),
+                                    child: Text(
+                                      o.depositPaymentMethod.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Color(0xFF1D4ED8),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildProofRow('প্রদেয় ডিপোজিট পরিমাণ:', '৳ ${o.depositRequired.toStringAsFixed(0)}', isBold: true),
+                                      const SizedBox(height: 6),
+                                      _buildProofRow('প্রেরক ফোন নম্বর:', o.depositSenderPhone.isNotEmpty ? o.depositSenderPhone : 'উল্লেখ করা হয়নি'),
+                                      const SizedBox(height: 6),
+                                      _buildProofRow('ট্রানজেকশন আইডি (TrxID):', o.depositTransactionId.isNotEmpty ? o.depositTransactionId : 'উল্লেখ করা হয়নি', isHighlight: true),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                // Screenshot preview
+                                if (o.depositProofUrl.isNotEmpty)
+                                  InkWell(
+                                    onTap: () => _showScreenshotDialog(context, o.depositProofUrl),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      width: 100,
+                                      height: 90,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                                        color: const Color(0xFFF1F5F9),
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: Stack(
+                                        fit: StackFit.expand,
+                                        children: [
+                                          Image.network(
+                                            o.depositProofUrl.startsWith('http')
+                                                ? o.depositProofUrl
+                                                : 'http://127.0.0.1:8000${o.depositProofUrl}',
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => const Center(
+                                              child: Icon(Icons.broken_image, size: 28, color: Color(0xFF94A3B8)),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            bottom: 0,
+                                            left: 0,
+                                            right: 0,
+                                            child: Container(
+                                              color: Colors.black.withValues(alpha: 0.6),
+                                              padding: const EdgeInsets.symmetric(vertical: 2),
+                                              child: const Text(
+                                                'বড় করে দেখুন 🔍',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Container(
+                                    width: 100,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      color: const Color(0xFFF8FAFC),
+                                    ),
+                                    child: const Center(
+                                      child: Column(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.image_not_supported_outlined, size: 22, color: Color(0xFF94A3B8)),
+                                          SizedBox(height: 4),
+                                          Text('স্ক্রিনশট নেই', style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8))),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 14),
+
+                      // If admin previously sent discrepancy message
+                      if (o.depositAdminFeedback.isNotEmpty || o.paymentStatus == 'deposit_discrepancy') ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFFECACA)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626), size: 22),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'অ্যাডমিনের অমিল বার্তা (ক্রেতাকে পাঠানো হয়েছে): "${o.depositAdminFeedback}"',
+                                  style: const TextStyle(fontSize: 12.5, color: Color(0xFF991B1B), fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
                       TextFormField(
                         controller: _paymentNotesCtrl,
                         decoration: const InputDecoration(
                           labelText: 'অ্যাডমিন নোট / ট্রানজেকশন রেফারেন্স (ঐচ্ছিক)',
-                          hintText: 'যেমন: বিকাশ মার্চেন্ট ট্রানজেকশন আইডি #TX928374',
+                          hintText: 'যেমন: বিকাশ মার্চেন্ট স্টেটমেন্ট চেক করা হয়েছে #TX928374',
                           border: OutlineInputBorder(),
                           contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                         ),
                       ),
                       const SizedBox(height: 16),
-                      ElevatedButton.icon(
-                        onPressed: _isProcessing
-                            ? null
-                            : () async {
-                                setState(() => _isProcessing = true);
-                                final ok = await repo.confirmOrderPayment(
-                                  orderId: o.id,
-                                  notes: _paymentNotesCtrl.text.trim().isNotEmpty
-                                      ? _paymentNotesCtrl.text.trim()
-                                      : 'টাকা প্রাপ্তি নিশ্চিত হয়েছে - অ্যাডমিন ভেরিফাইড',
-                                );
-                                setState(() => _isProcessing = false);
-                                if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(ok
-                                          ? '✅ ডিপোজিট পেমেন্ট কনফার্ম করা হয়েছে! ধাপ ২ আনলক হয়েছে।'
-                                          : '❌ পেমেন্ট নিশ্চিতকরণে সমস্যা হয়েছে। আবার চেষ্টা করুন।'),
-                                      backgroundColor: ok ? const Color(0xFF166534) : Colors.red,
-                                    ),
-                                  );
-                              },
-                        icon: _isProcessing
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Icon(Icons.verified, size: 18),
-                        label: const Text('হ্যাঁ, টাকা পেয়েছি — পেমেন্ট প্রাপ্তি নিশ্চিত করুন'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF166534),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
+
+                      // Action buttons: Confirm vs Reject/Discrepancy
+                      Row(
+                        children: [
+                          ElevatedButton.icon(
+                            onPressed: _isProcessing
+                                ? null
+                                : () async {
+                                    setState(() => _isProcessing = true);
+                                    final ok = await repo.confirmOrderPayment(
+                                      orderId: o.id,
+                                      notes: _paymentNotesCtrl.text.trim().isNotEmpty
+                                          ? _paymentNotesCtrl.text.trim()
+                                          : 'টাকা প্রাপ্তি নিশ্চিত হয়েছে - অ্যাডমিন ভেরিফাইড',
+                                    );
+                                    setState(() => _isProcessing = false);
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(ok
+                                            ? '✅ ডিপোজিট পেমেন্ট কনফার্ম করা হয়েছে! ধাপ ২ আনলক হয়েছে।'
+                                            : '❌ পেমেন্ট নিশ্চিতকরণে সমস্যা হয়েছে। আবার চেষ্টা করুন।'),
+                                        backgroundColor: ok ? const Color(0xFF166534) : Colors.red,
+                                      ),
+                                    );
+                                  },
+                            icon: _isProcessing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                  )
+                                : const Icon(Icons.verified, size: 18),
+                            label: const Text('হ্যাঁ, টাকা পেয়েছি — পেমেন্ট প্রাপ্তি নিশ্চিত করুন'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF166534),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          OutlinedButton.icon(
+                            onPressed: _isProcessing
+                                ? null
+                                : () => _showDiscrepancyDialog(context, repo, o),
+                            icon: const Icon(Icons.feedback_outlined, size: 18),
+                            label: const Text('টাকা মেলেনি / ভুল তথ্য (বার্তা পাঠান)'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFFDC2626),
+                              side: const BorderSide(color: Color(0xFFDC2626)),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProofRow(String label, String value, {bool isBold = false, bool isHighlight = false}) {
+    return Row(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isBold || isHighlight ? FontWeight.bold : FontWeight.normal,
+            color: isHighlight ? const Color(0xFF0284C7) : const Color(0xFF0F172A),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showScreenshotDialog(BuildContext context, String imageUrl) {
+    final fullUrl = imageUrl.startsWith('http') ? imageUrl : 'http://127.0.0.1:8000$imageUrl';
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 700),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('পেমেন্ট স্ক্রিনশট প্রমাণাদি', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    fullUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('ছবি লোড করা যায়নি।'),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showDiscrepancyDialog(BuildContext context, AdminRepository repo, AdminOrderRecord o) {
+    final ctrl = TextEditingController(
+      text: 'আপনার প্রদত্ত ট্রানজেকশন আইডি বা স্ক্রিনশট অনুযায়ী আমাদের অ্যাকাউন্টে টাকা জমা হয়নি। অনুগ্রহ করে সঠিক TrxID ও নম্বর দিয়ে পুনরায় জমা দিন।',
+    );
+    final messenger = ScaffoldMessenger.of(context);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('টাকা মেলেনি বা ভুল তথ্য — ক্রেতাকে বার্তা পাঠান', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'এই বার্তাটি ক্রেতার অ্যাপে তার অর্ডারে লাল সতর্কবার্তা আকারে প্রদর্শিত হবে এবং তিনি সঠিক তথ্য দিয়ে পুনরায় ডিপোজিট জমা দিতে পারবেন।',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'মন্তব্য / অমিলের কারণ লিখুন *',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('বাতিল')),
+          ElevatedButton(
+            onPressed: () async {
+              final reason = ctrl.text.trim();
+              if (reason.isEmpty) return;
+              Navigator.pop(ctx);
+
+              setState(() => _isProcessing = true);
+              final ok = await repo.rejectOrderDeposit(
+                orderId: o.id,
+                rejectionReason: reason,
+              );
+              setState(() => _isProcessing = false);
+
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(ok
+                      ? '⚠️ ক্রেতার কাছে অমিলের বার্তা সফলভাবে পাঠানো হয়েছে।'
+                      : '❌ বার্তা পাঠাতে সমস্যা হয়েছে।'),
+                  backgroundColor: ok ? const Color(0xFFD97706) : Colors.red,
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), foregroundColor: Colors.white),
+            child: const Text('বার্তা পাঠান'),
           ),
         ],
       ),

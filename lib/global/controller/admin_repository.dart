@@ -21,6 +21,11 @@ class AdminRepository extends ChangeNotifier {
   List<AdminDisputeRecord> _disputes = [];
   List<AdminDisputeRecord> get disputes => _disputes;
 
+  List<PaymentSettingModel> _paymentSettings = [];
+  List<PaymentSettingModel> get paymentSettings => _paymentSettings;
+  bool _isLoadingSettings = false;
+  bool get isLoadingSettings => _isLoadingSettings;
+
   UserDetailRecord? activeUserForDetail;
   AdminProductApprovalRecord? activeProductForDetail;
   AdminDemandMonitoringRecord? activeDemandForDetail;
@@ -81,6 +86,7 @@ class AdminRepository extends ChangeNotifier {
     fetchProductsFromBackend();
     fetchDemandsFromBackend();
     fetchOrdersFromBackend();
+    fetchPaymentSettingsFromBackend();
   }
 
   Future<void> fetchUsersFromBackend() async {
@@ -650,6 +656,54 @@ class AdminRepository extends ChangeNotifier {
     );
     if (success) {
       await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> rejectOrderDeposit({
+    required String orderId,
+    required String rejectionReason,
+    String? notes,
+  }) async {
+    final success = await AdminApiService.rejectOrderDeposit(
+      orderId: orderId,
+      rejectionReason: rejectionReason,
+      notes: notes,
+    );
+    if (success) {
+      await fetchOrdersFromBackend();
+    }
+    return success;
+  }
+
+  Future<void> fetchPaymentSettingsFromBackend() async {
+    _isLoadingSettings = true;
+    notifyListeners();
+    try {
+      final data = await AdminApiService.fetchPaymentSettings();
+      if (data.isNotEmpty) {
+        _paymentSettings = data.map((json) => PaymentSettingModel.fromJson(json)).toList();
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN REPO] Error fetching payment settings: $e');
+    } finally {
+      _isLoadingSettings = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> savePaymentSetting(PaymentSettingModel model) async {
+    final success = await AdminApiService.savePaymentSetting(model.toJson());
+    if (success) {
+      await fetchPaymentSettingsFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> togglePaymentMethod(String id, bool isActive) async {
+    final success = await AdminApiService.updatePaymentSetting(id, {'is_active': isActive});
+    if (success) {
+      await fetchPaymentSettingsFromBackend();
     }
     return success;
   }

@@ -28,6 +28,7 @@ class WebSidebar extends StatelessWidget {
       WebSidebarItem(icon: Icons.campaign_outlined, title: 'চাহিদা তদারকি'),
       WebSidebarItem(icon: Icons.local_shipping_outlined, title: 'অর্ডার ট্র্যাকিং'),
       WebSidebarItem(icon: Icons.gavel_outlined, title: 'অভিযোগ নিষ্পত্তি'),
+      WebSidebarItem(icon: Icons.settings_outlined, title: 'সেটিংস'),
     ];
 
     return Container(
