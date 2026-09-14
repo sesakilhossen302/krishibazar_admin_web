@@ -21,8 +21,36 @@ class AdminRepository extends ChangeNotifier {
   List<AdminDisputeRecord> _disputes = [];
   List<AdminDisputeRecord> get disputes => _disputes;
 
-  List<PaymentSettingModel> _paymentSettings = [];
-  List<PaymentSettingModel> get paymentSettings => _paymentSettings;
+  static List<PaymentSettingModel> get defaultPaymentMethods => [
+    PaymentSettingModel(
+      id: 'bkash',
+      name: 'বিকাশ',
+      accountNumber: '01712-345678',
+      accountType: 'Merchant',
+      isActive: true,
+      instructions: 'বিকাশ মার্চেন্ট নম্বরে পেমেন্ট করুন অথবা রেফারেন্সে অর্ডার নং দিন।',
+    ),
+    PaymentSettingModel(
+      id: 'nagad',
+      name: 'নগদ',
+      accountNumber: '01812-345678',
+      accountType: 'Personal',
+      isActive: true,
+      instructions: 'নগদ পার্সোনাল নম্বরে সেন্ড মানি করে TrxID ও স্ক্রিনশট দিন।',
+    ),
+    PaymentSettingModel(
+      id: 'rocket',
+      name: 'রকেট',
+      accountNumber: '01912-345678-9',
+      accountType: 'Personal',
+      isActive: true,
+      instructions: 'রকেট নম্বরে টাকা পাঠিয়ে ট্রানজেকশন আইডি দিন।',
+    ),
+  ];
+
+  List<PaymentSettingModel> _paymentSettings = defaultPaymentMethods;
+  List<PaymentSettingModel> get paymentSettings =>
+      _paymentSettings.isNotEmpty ? _paymentSettings : defaultPaymentMethods;
   bool _isLoadingSettings = false;
   bool get isLoadingSettings => _isLoadingSettings;
 
@@ -846,6 +874,33 @@ class AdminRepository extends ChangeNotifier {
   }
 
   void _initDemoData() {
+    _paymentSettings = [
+      PaymentSettingModel(
+        id: 'bkash',
+        name: 'বিকাশ',
+        accountNumber: '01712-345678',
+        accountType: 'Merchant',
+        isActive: true,
+        instructions: 'বিকাশ মার্চেন্ট নম্বরে পেমেন্ট করুন অথবা রেফারেন্সে অর্ডার নং দিন।',
+      ),
+      PaymentSettingModel(
+        id: 'nagad',
+        name: 'নগদ',
+        accountNumber: '01812-345678',
+        accountType: 'Personal',
+        isActive: true,
+        instructions: 'নগদ পার্সোনাল নম্বরে সেন্ড মানি করে TrxID ও স্ক্রিনশট দিন।',
+      ),
+      PaymentSettingModel(
+        id: 'rocket',
+        name: 'রকেট',
+        accountNumber: '01912-345678-9',
+        accountType: 'Personal',
+        isActive: true,
+        instructions: 'রকেট নম্বরে টাকা পাঠিয়ে ট্রানজেকশন আইডি দিন।',
+      ),
+    ];
+
     _farmers = [
       FarmerVerificationRecord(
         id: 'f1',

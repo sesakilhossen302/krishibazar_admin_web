@@ -49,6 +49,195 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _showAddPaymentMethodDialog(BuildContext context, AdminRepository repo) {
+    final nameCtrl = TextEditingController(text: 'বিকাশ');
+    final numCtrl = TextEditingController();
+    final instrCtrl = TextEditingController(text: 'টাকা পাঠিয়ে ট্রানজেকশন আইডি ও স্ক্রিনশট দিন।');
+    String selectedType = 'Personal';
+    bool isActive = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: const [
+              Icon(Icons.add_card_rounded, color: Color(0xFF166534), size: 24),
+              SizedBox(width: 10),
+              Text(
+                'নতুন পেমেন্ট গেটওয়ে বা নম্বর যোগ করুন',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: SizedBox(
+              width: 480,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'পেমেন্ট মেথডের নাম *',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: nameCtrl.text,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'বিকাশ', child: Text('বিকাশ (bKash)')),
+                      DropdownMenuItem(value: 'নগদ', child: Text('নগদ (Nagad)')),
+                      DropdownMenuItem(value: 'রকেট', child: Text('রকেট (Rocket)')),
+                      DropdownMenuItem(value: 'উপায়', child: Text('উপায় (Upay)')),
+                      DropdownMenuItem(value: 'ইসলামী ব্যাংক', child: Text('ইসলামী ব্যাংক বাংলাদেশ')),
+                      DropdownMenuItem(value: 'অন্যান্য ব্যাংক', child: Text('অন্যান্য ব্যাংক / সার্ভিস')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDlgState(() => nameCtrl.text = val);
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text(
+                    'অ্যাকাউন্ট নম্বর *',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: numCtrl,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      hintText: 'যেমন: 01712-345678',
+                      prefixIcon: const Icon(Icons.phone_android, size: 18, color: Color(0xFF166534)),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text(
+                    'অ্যাকাউন্ট টাইপ',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedType,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'Personal', child: Text('পার্সোনাল (Personal)')),
+                      DropdownMenuItem(value: 'Merchant', child: Text('মার্চেন্ট (Merchant)')),
+                      DropdownMenuItem(value: 'Agent', child: Text('এজেন্ট (Agent)')),
+                      DropdownMenuItem(value: 'Bank', child: Text('ব্যাংক একাউন্ট')),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) setDlgState(() => selectedType = val);
+                    },
+                  ),
+                  const SizedBox(height: 14),
+
+                  const Text(
+                    'ক্রেতার জন্য নির্দেশিকা',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: instrCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      hintText: 'যেমন: টাকা পাঠিয়ে TrxID ও স্ক্রিনশট দিন...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'সরাসরি অন (সক্রিয়) রাখুন:',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                      Switch(
+                        value: isActive,
+                        activeThumbColor: const Color(0xFF166534),
+                        onChanged: (val) => setDlgState(() => isActive = val),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('বাতিল', style: TextStyle(color: Color(0xFF64748B))),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final numStr = numCtrl.text.trim();
+                if (numStr.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('অনুগ্রহ করে একটি অ্যাকাউন্ট নম্বর দিন।')),
+                  );
+                  return;
+                }
+
+                String id = nameCtrl.text.toLowerCase();
+                if (id.contains('বিকাশ')) {
+                  id = 'bkash';
+                } else if (id.contains('নগদ')) {
+                  id = 'nagad';
+                } else if (id.contains('রকেট')) {
+                  id = 'rocket';
+                } else if (id.contains('উপায়')) {
+                  id = 'upay';
+                } else {
+                  id = 'method_${DateTime.now().millisecondsSinceEpoch}';
+                }
+
+                final newSetting = PaymentSettingModel(
+                  id: id,
+                  name: nameCtrl.text,
+                  accountNumber: numStr,
+                  accountType: selectedType,
+                  isActive: isActive,
+                  instructions: instrCtrl.text.trim(),
+                );
+
+                Navigator.pop(ctx);
+                final ok = await repo.savePaymentSetting(newSetting);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok ? '✅ ${newSetting.name} সফলভাবে সংরক্ষণ ও সক্রিয় করা হয়েছে!' : '❌ সেভ করতে সমস্যা হয়েছে।'),
+                      backgroundColor: ok ? const Color(0xFF166534) : Colors.red,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF166534),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              child: const Text('সংরক্ষণ ও অন করুন', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final repo = context.watch<AdminRepository>();
@@ -82,24 +271,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: repo.isLoadingSettings
-                    ? null
-                    : () => repo.fetchPaymentSettingsFromBackend(),
-                icon: repo.isLoadingSettings
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.refresh, size: 18),
-                label: const Text('রিফ্রেশ'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF166534),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
+              Row(
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () => _showAddPaymentMethodDialog(context, repo),
+                    icon: const Icon(Icons.add, size: 18, color: Colors.white),
+                    label: const Text(
+                      'নতুন নম্বর / মেথড যুক্ত করুন',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: repo.isLoadingSettings
+                        ? null
+                        : () => repo.fetchPaymentSettingsFromBackend(),
+                    icon: repo.isLoadingSettings
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF166534)),
+                          )
+                        : const Icon(Icons.refresh, size: 18, color: Color(0xFF166534)),
+                    label: const Text('রিফ্রেশ', style: TextStyle(color: Color(0xFF166534))),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Color(0xFF166534)),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -128,36 +334,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 24),
 
-          if (repo.isLoadingSettings && settings.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(48),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else ...[
-            // Payment Cards Grid (bKash, Nagad, Rocket)
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 1024;
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isWide ? 3 : (constraints.maxWidth >= 680 ? 2 : 1),
-                    crossAxisSpacing: 20,
-                    mainAxisSpacing: 20,
-                    mainAxisExtent: 440,
-                  ),
-                  itemCount: settings.length,
-                  itemBuilder: (context, index) {
-                    final item = settings[index];
-                    return _buildPaymentCard(context, item, repo);
-                  },
-                );
-              },
-            ),
-          ],
+          // Payment Cards Grid (bKash, Nagad, Rocket)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 1024;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isWide ? 3 : (constraints.maxWidth >= 680 ? 2 : 1),
+                  crossAxisSpacing: 20,
+                  mainAxisSpacing: 20,
+                  mainAxisExtent: 460,
+                ),
+                itemCount: settings.length,
+                itemBuilder: (context, index) {
+                  final item = settings[index];
+                  return _buildPaymentCard(context, item, repo);
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -201,13 +398,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isActive ? themeColor.withValues(alpha: 0.4) : const Color(0xFFE2E8F0),
+          color: isActive ? themeColor.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
           width: isActive ? 2 : 1,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
+            color: isActive ? themeColor.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.03),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],
@@ -215,21 +412,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Brand & On/Off Switch
+          // Header Row with Brand & Switch
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 42,
+                    height: 42,
                     decoration: BoxDecoration(
-                      color: themeColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      color: themeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
-                      child: Text(defaultIcon, style: const TextStyle(fontSize: 22)),
+                      child: Text(defaultIcon, style: const TextStyle(fontSize: 20)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -244,19 +441,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: themeColor,
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: isActive ? const Color(0xFFDCFCE7) : const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          isActive ? 'সক্রিয় (Active) ✅' : 'নিষ্ক্রিয় (Off) ⏸️',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: isActive ? const Color(0xFF166534) : const Color(0xFF64748B),
-                          ),
+                      Text(
+                        isActive ? 'অন (সক্রিয়)' : 'অফ (নিষ্ক্রিয়)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: isActive ? const Color(0xFF166534) : const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -270,11 +460,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   setState(() {
                     _activeValues[item.id] = val;
                   });
-                  await repo.togglePaymentMethod(item.id, val);
+                  // Auto-save currently entered number and instructions when toggling switch
+                  final updated = item.copyWith(
+                    accountNumber: numCtrl.text.trim().isNotEmpty ? numCtrl.text.trim() : item.accountNumber,
+                    accountType: _typeValues[item.id] ?? item.accountType,
+                    isActive: val,
+                    instructions: instrCtrl.text.trim(),
+                  );
+                  await repo.savePaymentSetting(updated);
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${item.name} এখন ${val ? "সক্রিয় (Active)" : "নিষ্ক্রিয় (Off)"} করা হয়েছে।'),
+                        content: Text('${item.name} এখন ${val ? "সক্রিয় (Active) ও সেভ" : "নিষ্ক্রিয় (Off) ও সেভ"} করা হয়েছে।'),
                         backgroundColor: val ? const Color(0xFF166534) : const Color(0xFF475569),
                         duration: const Duration(seconds: 2),
                       ),
@@ -289,9 +486,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 16),
 
           // Account Number Input
-          Text(
-            '${item.name} অ্যাকাউন্ট নম্বর *',
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${item.name} একাউন্ট নম্বর দিন *',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+              ),
+              if (item.accountNumber.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text('এডিট করতে পারেন', style: TextStyle(fontSize: 10, color: Color(0xFF64748B))),
+                ),
+            ],
           ),
           const SizedBox(height: 6),
           TextFormField(
@@ -323,6 +534,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               DropdownMenuItem(value: 'Personal', child: Text('পার্সোনাল (Personal)')),
               DropdownMenuItem(value: 'Merchant', child: Text('মার্চেন্ট (Merchant)')),
               DropdownMenuItem(value: 'Agent', child: Text('এজেন্ট (Agent)')),
+              DropdownMenuItem(value: 'Bank', child: Text('ব্যাংক একাউন্ট')),
             ],
             onChanged: (val) {
               if (val != null) setState(() => _typeValues[item.id] = val);
@@ -362,11 +574,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         return;
                       }
 
-                      setState(() => _isSaving[item.id] = true);
+                      setState(() {
+                        _isSaving[item.id] = true;
+                        // Automatically turn ON when clicking Save!
+                        _activeValues[item.id] = true;
+                      });
+
                       final updated = item.copyWith(
                         accountNumber: number,
                         accountType: _typeValues[item.id] ?? item.accountType,
-                        isActive: _activeValues[item.id] ?? item.isActive,
+                        isActive: true, // Auto ON upon save!
                         instructions: instrCtrl.text.trim(),
                       );
                       final ok = await repo.savePaymentSetting(updated);
@@ -376,26 +593,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(ok
-                                ? '✅ ${item.name} নম্বর সফলভাবে সংরক্ষণ ও আপডেট করা হয়েছে!'
+                                ? '✅ ${item.name} নম্বর সফলভাবে সংরক্ষণ ও সক্রিয় (On) করা হয়েছে!'
                                 : '❌ সেভ করতে সমস্যা হয়েছে।'),
                             backgroundColor: ok ? const Color(0xFF166534) : Colors.red,
+                            duration: const Duration(seconds: 3),
                           ),
                         );
                       }
                     },
               icon: isSaving
                   ? const SizedBox(
-                      width: 14,
-                      height: 14,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Icon(Icons.check_circle_outline, size: 18),
-              label: const Text('সংরক্ষণ ও নিশ্চিত করুন'),
+                  : const Icon(Icons.check_circle_outline, size: 18, color: Colors.white),
+              label: Text(
+                isSaving ? 'সংরক্ষণ হচ্ছে...' : 'সংরক্ষণ ও অন (Active) করুন',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: themeColor,
-                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                elevation: 1,
               ),
             ),
           ),
