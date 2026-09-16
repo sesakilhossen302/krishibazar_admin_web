@@ -38,6 +38,7 @@ extension ProductUnitExt on ProductUnit {
 
 enum OrderStatus {
   pending,
+  qualityApproved,
   paymentPending,
   paymentConfirmed,
   collectionVerified,
@@ -56,7 +57,9 @@ extension OrderStatusExt on OrderStatus {
   String get labelBn {
     switch (this) {
       case OrderStatus.pending:
-        return 'অপেক্ষমাণ (ডিপোজিট বাকি)';
+        return 'অপেক্ষমাণ (হাবে যাচাই বাকি)';
+      case OrderStatus.qualityApproved:
+        return 'হাবে মান যাচাই সম্পন্ন (পেমেন্ট বাকি) ⏳';
       case OrderStatus.paymentPending:
         return 'পেমেন্ট যাচাই পেন্ডিং ⏳';
       case OrderStatus.paymentConfirmed:
@@ -429,6 +432,8 @@ class AdminOrderRecord {
   final double productAmount;
   final double buyerServiceFee;
   final double buyerTotalAmount;
+  final double deliveryCharge;
+  final double advancePayableAmount;
   final double farmerServiceFee;
   final double farmerPayoutAmount;
   final String farmerPayoutStatus;
@@ -453,6 +458,8 @@ class AdminOrderRecord {
     this.buyerBusinessName = '',
     required this.totalAmount,
     this.depositRequired = 0,
+    this.deliveryCharge = 0,
+    this.advancePayableAmount = 0,
     this.isDepositPaid = false,
     this.paymentStatus = 'unpaid',
     this.paymentVerificationNotes = '',
@@ -618,6 +625,12 @@ class AdminOrderRecord {
       productAmount: prodAmt > 0 ? prodAmt : total,
       buyerServiceFee: bFee,
       buyerTotalAmount: bTotal > 0 ? bTotal : (total + bFee),
+      deliveryCharge: (json['delivery_charge'] is num)
+          ? (json['delivery_charge'] as num).toDouble()
+          : (double.tryParse(json['delivery_charge']?.toString() ?? '') ?? 0.0),
+      advancePayableAmount: (json['advance_payable_amount'] is num)
+          ? (json['advance_payable_amount'] as num).toDouble()
+          : (double.tryParse(json['advance_payable_amount']?.toString() ?? '') ?? dep),
       farmerServiceFee: fFee,
       farmerPayoutAmount: fPayout > 0 ? fPayout : (total - fFee),
       farmerPayoutStatus: fPayoutStatus,
@@ -713,3 +726,105 @@ class PaymentSettingModel {
     };
   }
 }
+
+class DeliveryChartModel {
+  final String id;
+  final String productName;
+  final String category;
+  final double minQuantity;
+  final double maxQuantity;
+  final String unit;
+  final double deliveryCharge;
+  final String chargeType; // 'fixed' or 'per_unit'
+  final String description;
+  final bool isActive;
+  final String createdAt;
+  final String updatedAt;
+
+  DeliveryChartModel({
+    required this.id,
+    required this.productName,
+    required this.category,
+    required this.minQuantity,
+    required this.maxQuantity,
+    required this.unit,
+    required this.deliveryCharge,
+    required this.chargeType,
+    required this.description,
+    required this.isActive,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  DeliveryChartModel copyWith({
+    String? id,
+    String? productName,
+    String? category,
+    double? minQuantity,
+    double? maxQuantity,
+    String? unit,
+    double? deliveryCharge,
+    String? chargeType,
+    String? description,
+    bool? isActive,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return DeliveryChartModel(
+      id: id ?? this.id,
+      productName: productName ?? this.productName,
+      category: category ?? this.category,
+      minQuantity: minQuantity ?? this.minQuantity,
+      maxQuantity: maxQuantity ?? this.maxQuantity,
+      unit: unit ?? this.unit,
+      deliveryCharge: deliveryCharge ?? this.deliveryCharge,
+      chargeType: chargeType ?? this.chargeType,
+      description: description ?? this.description,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  factory DeliveryChartModel.fromJson(Map<String, dynamic> json) {
+    return DeliveryChartModel(
+      id: json['id']?.toString() ?? '',
+      productName: json['product_name']?.toString() ?? 'সকল পণ্য',
+      category: json['category']?.toString() ?? 'সকল ক্যাটাগরি',
+      minQuantity: (json['min_quantity'] is num)
+          ? (json['min_quantity'] as num).toDouble()
+          : (double.tryParse(json['min_quantity']?.toString() ?? '') ?? 0.0),
+      maxQuantity: (json['max_quantity'] is num)
+          ? (json['max_quantity'] as num).toDouble()
+          : (double.tryParse(json['max_quantity']?.toString() ?? '') ?? 100000.0),
+      unit: json['unit']?.toString() ?? 'কেজি (kg)',
+      deliveryCharge: (json['delivery_charge'] is num)
+          ? (json['delivery_charge'] as num).toDouble()
+          : (double.tryParse(json['delivery_charge']?.toString() ?? '') ?? 0.0),
+      chargeType: json['charge_type']?.toString() ?? 'fixed',
+      description: json['description']?.toString() ?? '',
+      isActive: json['is_active'] != false,
+      createdAt: json['created_at']?.toString() ?? '',
+      updatedAt: json['updated_at']?.toString() ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final map = <String, dynamic>{
+      'product_name': productName,
+      'category': category,
+      'min_quantity': minQuantity,
+      'max_quantity': maxQuantity,
+      'unit': unit,
+      'delivery_charge': deliveryCharge,
+      'charge_type': chargeType,
+      'description': description,
+      'is_active': isActive,
+    };
+    if (id.trim().isNotEmpty) {
+      map['id'] = id.trim();
+    }
+    return map;
+  }
+}
+

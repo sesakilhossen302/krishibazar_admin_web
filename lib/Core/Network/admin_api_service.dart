@@ -452,4 +452,84 @@ class AdminApiService {
       return false;
     }
   }
+
+  /// Fetch Delivery Charts from backend
+  static Future<List<Map<String, dynamic>>> fetchDeliveryCharts() async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/delivery-charts');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(utf8.decode(response.bodyBytes));
+        return data.cast<Map<String, dynamic>>();
+      } else {
+        debugPrint('⚠️ [ADMIN API ERROR - FETCH DELIVERY CHARTS HTTP ${response.statusCode}]: ${response.body}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - FETCH DELIVERY CHARTS]: $e');
+    }
+    return [];
+  }
+
+  /// Create new delivery chart
+  static Future<bool> createDeliveryChart(Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/delivery-charts');
+      final response = await http.post(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(data),
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        debugPrint('⚠️ [ADMIN API ERROR - CREATE DELIVERY CHART HTTP ${response.statusCode}]: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - CREATE DELIVERY CHART]: $e');
+      return false;
+    }
+  }
+
+  /// Update delivery chart
+  static Future<bool> updateDeliveryChart(String id, Map<String, dynamic> data) async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/delivery-charts/$id');
+      final response = await http.patch(
+        uri,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(data),
+      ).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        debugPrint('⚠️ [ADMIN API ERROR - UPDATE DELIVERY CHART HTTP ${response.statusCode}]: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - UPDATE DELIVERY CHART]: $e');
+      return false;
+    }
+  }
+
+  /// Delete delivery chart
+  static Future<bool> deleteDeliveryChart(String id) async {
+    try {
+      final uri = Uri.parse('$baseUrl/settings/delivery-charts/$id');
+      final response = await http.delete(uri).timeout(const Duration(seconds: 8));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        debugPrint('⚠️ [ADMIN API ERROR - DELETE DELIVERY CHART HTTP ${response.statusCode}]: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN API ERROR - DELETE DELIVERY CHART]: $e');
+      return false;
+    }
+  }
 }

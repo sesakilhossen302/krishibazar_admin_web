@@ -54,6 +54,11 @@ class AdminRepository extends ChangeNotifier {
   bool _isLoadingSettings = false;
   bool get isLoadingSettings => _isLoadingSettings;
 
+  List<DeliveryChartModel> _deliveryCharts = [];
+  List<DeliveryChartModel> get deliveryCharts => _deliveryCharts;
+  bool _isLoadingDeliveryCharts = false;
+  bool get isLoadingDeliveryCharts => _isLoadingDeliveryCharts;
+
   UserDetailRecord? activeUserForDetail;
   AdminProductApprovalRecord? activeProductForDetail;
   AdminDemandMonitoringRecord? activeDemandForDetail;
@@ -115,6 +120,7 @@ class AdminRepository extends ChangeNotifier {
     fetchDemandsFromBackend();
     fetchOrdersFromBackend();
     fetchPaymentSettingsFromBackend();
+    fetchDeliveryChartsFromBackend();
   }
 
   Future<void> fetchUsersFromBackend() async {
@@ -732,6 +738,44 @@ class AdminRepository extends ChangeNotifier {
     final success = await AdminApiService.updatePaymentSetting(id, {'is_active': isActive});
     if (success) {
       await fetchPaymentSettingsFromBackend();
+    }
+    return success;
+  }
+
+  Future<void> fetchDeliveryChartsFromBackend() async {
+    _isLoadingDeliveryCharts = true;
+    notifyListeners();
+    try {
+      final data = await AdminApiService.fetchDeliveryCharts();
+      _deliveryCharts = data.map((json) => DeliveryChartModel.fromJson(json)).toList();
+    } catch (e) {
+      debugPrint('⚠️ [ADMIN REPO] Error fetching delivery charts: $e');
+    } finally {
+      _isLoadingDeliveryCharts = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> createDeliveryChart(DeliveryChartModel model) async {
+    final success = await AdminApiService.createDeliveryChart(model.toJson());
+    if (success) {
+      await fetchDeliveryChartsFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> updateDeliveryChart(String id, Map<String, dynamic> data) async {
+    final success = await AdminApiService.updateDeliveryChart(id, data);
+    if (success) {
+      await fetchDeliveryChartsFromBackend();
+    }
+    return success;
+  }
+
+  Future<bool> deleteDeliveryChart(String id) async {
+    final success = await AdminApiService.deleteDeliveryChart(id);
+    if (success) {
+      await fetchDeliveryChartsFromBackend();
     }
     return success;
   }

@@ -27,7 +27,7 @@ class StaticString {
   static const String colBuyer = "পাইকারি ক্রেতা";
   static const String colFarmer = "কৃষক";
   static const String colAmount = "মোট মূল্য (৳)";
-  static const String colDeposit = "২০% ডিপোজিট";
+  static const String colDeposit = "ডেলিভারি ও সার্ভিস ফি";
   static const String colOrderStatus = "অর্ডার স্ট্যাটাস";
   static const String colTransportStatus = "পরিবহন অবস্থান";
   static const String colActions = "অ্যাকশন";
