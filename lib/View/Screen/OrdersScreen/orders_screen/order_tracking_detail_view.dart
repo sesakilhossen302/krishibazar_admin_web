@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../global/Model/admin_models.dart';
 import '../../../../global/controller/admin_repository.dart';
+import '../../../../Core/Network/admin_api_service.dart';
 
 class OrderTrackingDetailView extends StatefulWidget {
   final AdminOrderRecord order;
@@ -1384,7 +1385,7 @@ class _OrderTrackingDetailViewState extends State<OrderTrackingDetailView> {
                                               Image.network(
                                                 o.depositProofUrl.startsWith('http')
                                                     ? o.depositProofUrl
-                                                    : 'http://127.0.0.1:8000${o.depositProofUrl}',
+                                                    : '${AdminApiService.serverBaseUrl}${o.depositProofUrl}',
                                                 fit: BoxFit.cover,
                                                 errorBuilder: (_, _, _) => const Center(
                                                   child: Icon(Icons.broken_image, size: 28, color: Color(0xFF94A3B8)),
@@ -1553,7 +1554,7 @@ class _OrderTrackingDetailViewState extends State<OrderTrackingDetailView> {
   }
 
   void _showScreenshotDialog(BuildContext context, String imageUrl) {
-    final fullUrl = imageUrl.startsWith('http') ? imageUrl : 'http://127.0.0.1:8000$imageUrl';
+    final fullUrl = imageUrl.startsWith('http') ? imageUrl : '${AdminApiService.serverBaseUrl}$imageUrl';
     showDialog(
       context: context,
       builder: (ctx) => Dialog(

@@ -3,8 +3,31 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class AdminApiService {
-  static const String serverBaseUrl = "http://127.0.0.1:8000";
-  static const String baseUrl = "$serverBaseUrl/api/v1";
+  /// ক্লায়েন্ট বা রিমোট অ্যাক্সেসের জন্য পাবলিক টানেল লিংক
+  static const String publicServerUrl = "https://venice-off-johnny-loans.trycloudflare.com";
+
+  /// লোকাল সার্ভার লিংক (পিসিতে ডেভেলপমেন্টের জন্য)
+  static const String localServerUrl = "http://127.0.0.1:8000";
+
+  /// মোড সিলেক্টর:
+  /// null = স্মার্ট অটোমেটিক (রিলিজ মোড হলে পাবলিক সার্ভার, ডিবাগে লোকাল)
+  /// true = সবসময় পাবলিক সার্ভার
+  /// false = সবসময় লোকাল সার্ভার
+  static const bool? forcePublicServer = null;
+
+  static bool get isUsingPublicServer {
+    if (forcePublicServer != null) return forcePublicServer!;
+    return kReleaseMode;
+  }
+
+  static String get serverBaseUrl {
+    if (isUsingPublicServer && publicServerUrl.isNotEmpty) {
+      return publicServerUrl;
+    }
+    return localServerUrl;
+  }
+
+  static String get baseUrl => "$serverBaseUrl/api/v1";
 
   /// Format image URL so it can be viewed on Web or Desktop browser
   static String formatMediaUrl(String? url) {
@@ -16,8 +39,15 @@ class AdminApiService {
     if (!formatted.startsWith("http://") && !formatted.startsWith("https://")) {
       return "$serverBaseUrl/$formatted";
     }
-    if (formatted.contains("10.0.2.2:8000")) {
-      formatted = formatted.replaceAll("10.0.2.2:8000", "127.0.0.1:8000");
+    if (isUsingPublicServer && publicServerUrl.isNotEmpty) {
+      formatted = formatted
+          .replaceAll("http://127.0.0.1:8000", publicServerUrl)
+          .replaceAll("http://localhost:8000", publicServerUrl)
+          .replaceAll("http://10.0.2.2:8000", publicServerUrl);
+    } else {
+      if (formatted.contains("10.0.2.2:8000")) {
+        formatted = formatted.replaceAll("10.0.2.2:8000", "127.0.0.1:8000");
+      }
     }
     return formatted;
   }
